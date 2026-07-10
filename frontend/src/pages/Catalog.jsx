@@ -88,7 +88,7 @@ export default function Catalog() {
         </div>
       </form>
 
-      <div className="flex items-center bg-white/80 backdrop-blur rounded-full px-4 py-2.5 mb-4 border border-gray-200/60">
+      <div className="flex items-center surface-translucent backdrop-blur rounded-full px-4 py-2.5 mb-4 border">
         <Search className="w-4 h-4 text-gray-400 mr-2" />
         <input
           type="text"

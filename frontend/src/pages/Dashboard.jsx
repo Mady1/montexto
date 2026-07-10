@@ -101,7 +101,7 @@ export default function Dashboard() {
           <h2 className="text-xl font-semibold text-gray-800">Vue d'ensemble</h2>
           <p className="text-sm text-gray-500 mt-1">Suivez vos performances SMS et mail</p>
         </div>
-        <div className="flex items-center space-x-2 bg-white/80 backdrop-blur rounded-full px-4 py-2 border border-gray-200/60">
+        <div className="flex items-center space-x-2 surface-translucent backdrop-blur rounded-full px-4 py-2 border">
           <Calendar className="w-4 h-4 text-gray-400" />
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-sm border-none outline-none text-gray-600 bg-transparent" />
           <span className="text-gray-300">→</span>
