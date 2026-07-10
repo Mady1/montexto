@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Loader2, Search, BookOpen, FileText } from 'lucide-react'
+import { Plus, Trash2, Loader2, Search, BookOpen, FileText, Edit3 } from 'lucide-react'
 import api from '../services/api'
+import Modal from '../components/Modal'
+import Pagination from '../components/Pagination'
+
+const PAGE_SIZE = 20
 
 export default function Catalog() {
   const [items, setItems] = useState([])
@@ -8,15 +12,21 @@ export default function Catalog() {
   const [content, setContent] = useState('')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [editItem, setEditItem] = useState(null)
+  const [editForm, setEditForm] = useState({ name: '', content: '' })
 
   useEffect(() => {
     fetchItems()
-  }, [])
+  }, [page])
 
   const fetchItems = async () => {
+    setLoading(true)
     try {
-      const res = await api.get('/catalog')
+      const res = await api.get('/catalog', { params: { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE } })
       setItems(res.data.data || [])
+      setTotalPages(Math.max(1, Math.ceil((res.data.total || 0) / PAGE_SIZE)))
     } catch (err) {
       console.error(err)
     } finally {
@@ -30,6 +40,7 @@ export default function Catalog() {
       await api.post('/catalog', { name, content, type: 'sms' })
       setName('')
       setContent('')
+      setPage(1)
       fetchItems()
     } catch (err) {
       alert(err.response?.data?.error || 'Erreur')
@@ -42,7 +53,23 @@ export default function Catalog() {
       await api.delete(`/catalog/${id}`)
       fetchItems()
     } catch (err) {
-      console.error(err)
+      alert(err.response?.data?.error || 'Erreur')
+    }
+  }
+
+  const openEdit = (item) => {
+    setEditItem(item)
+    setEditForm({ name: item.name, content: item.content })
+  }
+
+  const handleEditSave = async (e) => {
+    e.preventDefault()
+    try {
+      await api.put(`/catalog/${editItem.id}`, { name: editForm.name, content: editForm.content, type: editItem.type })
+      setEditItem(null)
+      fetchItems()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erreur')
     }
   }
 
@@ -123,9 +150,14 @@ export default function Catalog() {
                   </div>
                   <h3 className="font-semibold text-gray-800 text-sm">{item.name}</h3>
                 </div>
-                <button onClick={() => handleDelete(item.id)} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => openEdit(item)} className="text-gray-400 hover:text-brand-600">
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => handleDelete(item.id)} className="text-red-400 hover:text-red-600">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
               <p className="text-sm text-gray-600 line-clamp-3 bg-gray-50 rounded-xl p-3">{item.content}</p>
               <div className="flex items-center justify-between mt-3">
@@ -136,6 +168,32 @@ export default function Catalog() {
           ))}
         </div>
       )}
+
+      <div className="mt-6">
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      </div>
+
+      <Modal open={!!editItem} onClose={() => setEditItem(null)} title="Modifier le modèle">
+        <form onSubmit={handleEditSave} className="space-y-3">
+          <input
+            type="text"
+            value={editForm.name}
+            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+            className="gem-input w-full"
+            placeholder="Nom du modèle"
+            required
+          />
+          <textarea
+            value={editForm.content}
+            onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+            rows={4}
+            className="gem-input w-full resize-none"
+            placeholder="Contenu du message"
+            required
+          />
+          <button type="submit" className="gem-btn-primary w-full">Enregistrer</button>
+        </form>
+      </Modal>
     </div>
   )
 }

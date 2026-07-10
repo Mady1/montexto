@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Loader2, Upload, Search, Contact, Mail, Phone, FileSpreadsheet, CheckCircle2, AlertCircle } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Plus, Trash2, Loader2, Upload, Search, Contact, Mail, Phone, FileSpreadsheet, CheckCircle2, AlertCircle, Edit3 } from 'lucide-react'
 import api from '../services/api'
+import Modal from '../components/Modal'
+import Pagination from '../components/Pagination'
+
+const PAGE_SIZE = 20
 
 const avatarColors = [
   'bg-gradient-to-br from-brand-400 to-brand-600',
@@ -14,6 +19,8 @@ const avatarColors = [
 ]
 
 export default function Contacts() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const groupFilter = searchParams.get('groupId') || ''
   const [contacts, setContacts] = useState([])
   const [groups, setGroups] = useState([])
   const [form, setForm] = useState({ firstName: '', lastName: '', phone: '', email: '', groupId: '' })
@@ -25,22 +32,40 @@ export default function Contacts() {
   const [csvData, setCsvData] = useState(null)
   const [csvImporting, setCsvImporting] = useState(false)
   const [csvResult, setCsvResult] = useState(null)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [editContact, setEditContact] = useState(null)
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '', email: '', groupId: '' })
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [page, groupFilter])
 
   const fetchData = async () => {
+    setLoading(true)
     try {
-      const [cRes, gRes] = await Promise.all([api.get('/contacts'), api.get('/groups')])
+      const [cRes, gRes] = await Promise.all([
+        api.get('/contacts', { params: { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE, groupId: groupFilter || undefined } }),
+        api.get('/groups'),
+      ])
       setContacts(cRes.data.data || [])
+      setTotalPages(Math.max(1, Math.ceil((cRes.data.total || 0) / PAGE_SIZE)))
       setGroups(gRes.data || [])
-      if (gRes.data.length > 0) setForm((prev) => ({ ...prev, groupId: gRes.data[0].id }))
+      if (gRes.data.length > 0) setForm((prev) => ({ ...prev, groupId: prev.groupId || gRes.data[0].id }))
     } catch (err) {
       console.error(err)
     } finally {
       setLoading(false)
     }
+  }
+
+  const clearGroupFilter = () => {
+    setPage(1)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('groupId')
+      return next
+    })
   }
 
   const handleChange = (e) => {
@@ -52,7 +77,8 @@ export default function Contacts() {
     try {
       await api.post('/contacts', form)
       setForm({ firstName: '', lastName: '', phone: '', email: '', groupId: form.groupId })
-      fetchData()
+      if (page === 1) fetchData()
+      else setPage(1)
     } catch (err) {
       alert(err.response?.data?.error || 'Erreur')
     }
@@ -82,6 +108,28 @@ export default function Contacts() {
       fetchData()
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const openEdit = (c) => {
+    setEditContact(c)
+    setEditForm({
+      firstName: c.first_name || '',
+      lastName: c.last_name || '',
+      phone: c.phone || '',
+      email: c.email || '',
+      groupId: c.group_id || '',
+    })
+  }
+
+  const handleEditSave = async (e) => {
+    e.preventDefault()
+    try {
+      await api.put(`/contacts/${editContact.id}`, editForm)
+      setEditContact(null)
+      fetchData()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erreur')
     }
   }
 
@@ -254,6 +302,17 @@ export default function Contacts() {
         {search && <span className="text-xs text-gray-400">{filtered.length} résultat(s)</span>}
       </div>
 
+      {groupFilter && (
+        <div className="flex items-center gap-2 mb-4 text-sm">
+          <span className="gem-badge bg-brand-50 text-brand-600">
+            Groupe : {groups.find((g) => String(g.id) === groupFilter)?.name || groupFilter}
+          </span>
+          <button onClick={clearGroupFilter} className="text-gray-400 hover:text-gray-600 text-xs underline">
+            Retirer le filtre
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
@@ -302,9 +361,14 @@ export default function Contacts() {
                     ) : <span className="text-gray-300">-</span>}
                   </td>
                   <td className="px-6 py-4">
-                    <button onClick={() => handleDelete(c.id)} className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                      <button onClick={() => openEdit(c)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(c.id)} className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -313,6 +377,55 @@ export default function Contacts() {
           </div>
         </div>
       )}
+
+      <div className="mt-6">
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      </div>
+
+      <Modal open={!!editContact} onClose={() => setEditContact(null)} title="Modifier le contact">
+        <form onSubmit={handleEditSave} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              type="text"
+              value={editForm.firstName}
+              onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+              className="gem-input w-full"
+              placeholder="Prénom"
+            />
+            <input
+              type="text"
+              value={editForm.lastName}
+              onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+              className="gem-input w-full"
+              placeholder="Nom"
+            />
+          </div>
+          <input
+            type="text"
+            value={editForm.phone}
+            onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+            className="gem-input w-full"
+            placeholder="Téléphone"
+            required
+          />
+          <input
+            type="email"
+            value={editForm.email}
+            onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+            className="gem-input w-full"
+            placeholder="Email"
+          />
+          <select
+            value={editForm.groupId}
+            onChange={(e) => setEditForm({ ...editForm, groupId: e.target.value })}
+            className="gem-input w-full"
+          >
+            <option value="">Aucun groupe</option>
+            {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+          <button type="submit" className="gem-btn-primary w-full">Enregistrer</button>
+        </form>
+      </Modal>
     </div>
   )
 }
