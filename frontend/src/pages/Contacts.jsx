@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Trash2, Loader2, Upload, Search, Contact, Mail, Phone, FileSpreadsheet, CheckCircle2, AlertCircle, Edit3 } from 'lucide-react'
+import { Plus, Trash2, Loader2, Upload, Search, Contact, Mail, Phone, FileSpreadsheet, CheckCircle2, AlertCircle, Edit3, Download } from 'lucide-react'
 import api from '../services/api'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
@@ -133,6 +133,24 @@ export default function Contacts() {
     }
   }
 
+  const handleDownloadTemplate = () => {
+    const rows = [
+      ['phone', 'firstName', 'lastName', 'email'],
+      ['+2250123456789', 'Jean', 'Dupont', 'jean.dupont@mail.com'],
+      ['+33612345678', 'Marie', 'Martin', 'marie.martin@mail.com'],
+    ]
+    const csv = rows.map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', 'modele_contacts.csv')
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  }
+
   const filtered = contacts.filter((c) =>
     `${c.first_name} ${c.last_name} ${c.phone} ${c.email || ''}`.toLowerCase().includes(search.toLowerCase())
   )
@@ -199,6 +217,13 @@ export default function Contacts() {
                 <FileSpreadsheet className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-sm font-medium text-gray-600">Cliquez pour sélectionner un fichier CSV</p>
                 <p className="text-xs text-gray-400 mt-1">Colonnes attendues: phone, firstName, lastName, email</p>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleDownloadTemplate() }}
+                  className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" /> Télécharger un modèle CSV
+                </button>
                 <input
                   id="csv-file-input"
                   type="file"
