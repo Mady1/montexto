@@ -19,7 +19,7 @@ function KpiCard({ icon: Icon, label, value, gradient, suffix }) {
 }
 
 export default function Statistics() {
-  const { hasPermission } = useAuth()
+  const { hasPermission, hasRole } = useAuth()
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(null)
@@ -80,6 +80,7 @@ export default function Statistics() {
     { type: 'contacts', label: 'Contacts' },
     { type: 'sms-history', label: 'Historique SMS' },
     { type: 'audit', label: 'Audit' },
+    ...(hasRole('super_admin') ? [{ type: 'users', label: 'Utilisateurs' }] : []),
   ]
 
   return (

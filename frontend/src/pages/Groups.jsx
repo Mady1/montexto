@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Users, Loader2, FolderPlus } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plus, Trash2, Users, Loader2, FolderPlus, Edit3, ArrowRight } from 'lucide-react'
 import api from '../services/api'
+import Modal from '../components/Modal'
 
 const groupColors = [
   'from-brand-400 to-brand-600',
@@ -16,6 +18,8 @@ export default function Groups() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(true)
+  const [editGroup, setEditGroup] = useState(null)
+  const [editForm, setEditForm] = useState({ name: '', description: '' })
 
   useEffect(() => {
     fetchGroups()
@@ -51,6 +55,22 @@ export default function Groups() {
       fetchGroups()
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const openEdit = (g) => {
+    setEditGroup(g)
+    setEditForm({ name: g.name, description: g.description || '' })
+  }
+
+  const handleEditSave = async (e) => {
+    e.preventDefault()
+    try {
+      await api.put(`/groups/${editGroup.id}`, editForm)
+      setEditGroup(null)
+      fetchGroups()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erreur')
     }
   }
 
@@ -110,9 +130,14 @@ export default function Groups() {
                 <div className={`w-12 h-12 bg-gradient-to-br ${groupColors[i % groupColors.length]} rounded-xl flex items-center justify-center shadow-sm`}>
                   <Users className="w-6 h-6 text-white" />
                 </div>
-                <button onClick={() => handleDelete(g.id)} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => openEdit(g)} className="text-gray-400 hover:text-brand-600">
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => handleDelete(g.id)} className="text-red-400 hover:text-red-600">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
               <h3 className="font-semibold text-gray-800 mb-1">{g.name}</h3>
               <p className="text-sm text-gray-500 mb-4 line-clamp-2">{g.description || 'Aucune description'}</p>
@@ -122,10 +147,37 @@ export default function Groups() {
                 </span>
                 <span className="text-xs text-gray-400">{new Date(g.created_at).toLocaleDateString('fr-FR')}</span>
               </div>
+              <Link
+                to={`/contacts?groupId=${g.id}`}
+                className="mt-3 flex items-center justify-end gap-1 text-xs font-medium text-brand-600 hover:text-brand-700"
+              >
+                Voir les contacts <ArrowRight className="w-3 h-3" />
+              </Link>
             </div>
           ))}
         </div>
       )}
+
+      <Modal open={!!editGroup} onClose={() => setEditGroup(null)} title="Modifier le groupe">
+        <form onSubmit={handleEditSave} className="space-y-3">
+          <input
+            type="text"
+            value={editForm.name}
+            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+            className="gem-input w-full"
+            placeholder="Nom du groupe"
+            required
+          />
+          <input
+            type="text"
+            value={editForm.description}
+            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+            className="gem-input w-full"
+            placeholder="Description optionnelle"
+          />
+          <button type="submit" className="gem-btn-primary w-full">Enregistrer</button>
+        </form>
+      </Modal>
     </div>
   )
 }

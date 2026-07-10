@@ -8,6 +8,7 @@ export default function ApiKeys() {
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(null)
   const [visibleKeys, setVisibleKeys] = useState({})
+  const [error, setError] = useState('')
 
   useEffect(() => {
     fetchKeys()
@@ -37,11 +38,12 @@ export default function ApiKeys() {
 
   const handleDelete = async (id) => {
     if (!confirm('Supprimer cette clé API ? Cette action est irréversible.')) return
+    setError('')
     try {
       await api.delete(`/api-keys/${id}`)
       fetchKeys()
     } catch (err) {
-      console.error(err)
+      setError(err.response?.data?.error || 'Erreur lors de la suppression de la clé')
     }
   }
 
@@ -63,6 +65,12 @@ export default function ApiKeys() {
         <h2 className="text-xl font-semibold text-gray-800">Clés API développeur</h2>
         <p className="text-sm text-gray-500 mt-1">Générez des clés API pour intégrer Montexto à vos applications</p>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm mb-6">
+          {error}
+        </div>
+      )}
 
       <div className="bg-brand-50/60 border border-brand-100 rounded-2xl p-4 mb-6 flex items-start space-x-3">
         <ShieldCheck className="w-5 h-5 text-brand-500 flex-shrink-0 mt-0.5" />
