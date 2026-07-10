@@ -1,0 +1,164 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --gem-bg: #f8f9fc;
+  --gem-surface: #ffffff;
+  --gem-border: #e8eaed;
+  --gem-text: #1a1a2e;
+  --gem-muted: #5f6368;
+  --gem-accent: #4285f4;
+  --gem-accent2: #9b72cb;
+  --gem-accent3: #d96570;
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--gem-bg);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--gem-text);
+}
+
+/* Gemini-style scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Gemini glass card */
+@layer components {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  }
+
+  .gem-card {
+    background: #ffffff;
+    border: 1px solid #e8eaed;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .gem-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+
+  .gem-input {
+    background: #f1f3f4;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    color: #1a1a2e;
+    transition: all 0.2s ease;
+    outline: none;
+  }
+  .gem-input:focus {
+    background: #ffffff;
+    border-color: #4285f4;
+    box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
+  }
+  .gem-input::placeholder {
+    color: #9aa0a6;
+  }
+
+  .gem-btn-primary {
+    background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 0.625rem 1.5rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(26, 115, 232, 0.3);
+  }
+  .gem-btn-primary:hover {
+    box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .gem-btn-ghost {
+    background: transparent;
+    color: #5f6368;
+    border-radius: 12px;
+    padding: 0.625rem 1.5rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+  }
+  .gem-btn-ghost:hover {
+    background: #f1f3f4;
+    color: #1a1a2e;
+  }
+
+  .gem-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .gem-gradient-text {
+    background: linear-gradient(135deg, #4285f4 0%, #9b72cb 50%, #d96570 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* Smooth fade-in animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #f1f3f4 25%, #e8eaed 50%, #f1f3f4 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}

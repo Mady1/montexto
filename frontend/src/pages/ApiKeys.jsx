@@ -1,0 +1,142 @@
+import { useEffect, useState } from 'react'
+import { Plus, Trash2, Loader2, Copy, Check, Eye, EyeOff, ShieldCheck, KeyRound, Code2 } from 'lucide-react'
+import api from '../services/api'
+
+export default function ApiKeys() {
+  const [keys, setKeys] = useState([])
+  const [name, setName] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [copied, setCopied] = useState(null)
+  const [visibleKeys, setVisibleKeys] = useState({})
+
+  useEffect(() => {
+    fetchKeys()
+  }, [])
+
+  const fetchKeys = async () => {
+    try {
+      const res = await api.get('/api-keys')
+      setKeys(res.data || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      await api.post('/api-keys', { name })
+      setName('')
+      fetchKeys()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erreur')
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (!confirm('Supprimer cette clé API ? Cette action est irréversible.')) return
+    try {
+      await api.delete(`/api-keys/${id}`)
+      fetchKeys()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const copyToClipboard = (value, id) => {
+    navigator.clipboard.writeText(value)
+    setCopied(id)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  const toggleVisible = (id) => {
+    setVisibleKeys((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  const maskKey = (key) => key.slice(0, 8) + '••••••••••••••••••••' + key.slice(-4)
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-gray-800">Clés API développeur</h2>
+        <p className="text-sm text-gray-500 mt-1">Générez des clés API pour intégrer Montexto à vos applications</p>
+      </div>
+
+      <div className="bg-brand-50/60 border border-brand-100 rounded-2xl p-4 mb-6 flex items-start space-x-3">
+        <ShieldCheck className="w-5 h-5 text-brand-500 flex-shrink-0 mt-0.5" />
+        <div className="text-sm text-brand-700">
+          <p className="font-medium mb-1">Sécurité de vos clés API</p>
+          <p className="text-brand-600">Ne partagez jamais vos clés API publiquement. Elles donnent accès à votre compte et à vos données. Traitez-les comme des mots de passe.</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="gem-card p-6 mb-6">
+        <div className="flex space-x-4">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Nom de la clé</label>
+            <input
+              placeholder="Ex: Application production"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="gem-input w-full"
+              required
+            />
+          </div>
+          <div className="flex items-end">
+            <button type="submit" className="gem-btn-primary flex items-center">
+              <Plus className="w-4 h-4 mr-2" /> Générer
+            </button>
+          </div>
+        </div>
+      </form>
+
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        </div>
+      ) : keys.length === 0 ? (
+        <div className="gem-card p-12 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <KeyRound className="w-8 h-8 text-gray-300" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Aucune clé API</h3>
+          <p className="text-sm text-gray-500">Générez votre première clé API ci-dessus</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {keys.map((k) => (
+            <div key={k.id} className="gem-card p-5 group">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-brand-400 to-gem-purple rounded-xl flex items-center justify-center">
+                    <Code2 className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800 text-sm">{k.name}</h3>
+                    <span className="text-xs text-gray-400">Créée le {new Date(k.created_at).toLocaleString('fr-FR')}</span>
+                  </div>
+                </div>
+                <button onClick={() => handleDelete(k.id)} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex items-center space-x-2 bg-gray-50 rounded-xl px-4 py-2.5">
+                <code className="flex-1 text-xs text-gray-600 font-mono break-all">
+                  {visibleKeys[k.id] ? k.key_value : maskKey(k.key_value)}
+                </code>
+                <button onClick={() => toggleVisible(k.id)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                  {visibleKeys[k.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+                <button onClick={() => copyToClipboard(k.key_value, k.id)} className="text-gray-400 hover:text-brand-600 flex-shrink-0">
+                  {copied === k.id ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
