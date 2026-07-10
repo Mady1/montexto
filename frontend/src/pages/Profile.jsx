@@ -108,7 +108,7 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-gray-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 pt-6 border-t border-gray-100">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Mail className="w-4 h-4 text-gray-400" />
             {user.email}
@@ -138,7 +138,7 @@ export default function Profile() {
           <User className="w-5 h-5 text-brand-500" />
           Informations personnelles
         </h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Prénom</label>
             <input
@@ -196,7 +196,7 @@ export default function Profile() {
             required
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Nouveau mot de passe</label>
             <input

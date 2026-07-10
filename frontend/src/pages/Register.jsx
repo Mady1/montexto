@@ -32,7 +32,7 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f9fc] p-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--gem-bg)] p-4 relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-brand-100/50 rounded-full blur-[120px]"></div>
         <div className="absolute top-1/3 -right-40 w-[400px] h-[400px] bg-gem-purple/15 rounded-full blur-[100px]"></div>
@@ -57,7 +57,7 @@ export default function Register() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Prénom</label>
                 <div className="relative">

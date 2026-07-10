@@ -7,7 +7,7 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-[#f8f9fc]">
+    <div className="flex min-h-screen bg-[var(--gem-bg)]">
       {/* Ambient gradient orbs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -left-20 w-[400px] h-[400px] bg-brand-100/40 rounded-full blur-[120px]"></div>

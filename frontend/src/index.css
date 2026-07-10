@@ -105,6 +105,16 @@ body {
     transition: background-color 0.2s ease, border-color 0.2s ease;
   }
 
+  .surface-translucent {
+    background: color-mix(in srgb, var(--gem-surface) 80%, transparent);
+    border-color: var(--gem-border);
+  }
+
+  .surface-panel {
+    background: var(--gem-surface);
+    border: 1px solid var(--gem-border);
+  }
+
   .text-muted {
     color: var(--gem-muted);
   }

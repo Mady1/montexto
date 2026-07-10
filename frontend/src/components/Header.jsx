@@ -76,7 +76,7 @@ export default function Header({ onMenuClick = () => {} }) {
   }
 
   return (
-    <header className="h-16 bg-white/70 backdrop-blur-xl border-b border-gray-200/60 flex items-center justify-between px-4 sm:px-8 sticky top-0 z-10">
+    <header className="h-16 surface-translucent backdrop-blur-xl border-b flex items-center justify-between px-4 sm:px-8 sticky top-0 z-10">
       <div className="flex items-center space-x-3 min-w-0">
         <button
           onClick={onMenuClick}
@@ -120,7 +120,7 @@ export default function Header({ onMenuClick = () => {} }) {
             )}
           </button>
           {showNotif && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in">
+            <div className="absolute right-0 top-full mt-2 w-80 surface-panel rounded-2xl shadow-xl overflow-hidden z-50 animate-fade-in">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                 <span className="text-sm font-semibold text-gray-700">Notifications</span>
                 {unread > 0 && (

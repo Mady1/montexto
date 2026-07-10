@@ -55,7 +55,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
         />
       )}
       <aside
-        className={`w-64 bg-white/80 backdrop-blur-xl border-r border-gray-200/60 flex flex-col h-screen fixed left-0 top-0 z-30 transition-transform duration-200 ${
+        className={`w-64 surface-translucent backdrop-blur-xl border-r flex flex-col h-screen fixed left-0 top-0 z-30 transition-transform duration-200 ${
           open ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0`}
       >
