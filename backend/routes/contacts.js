@@ -82,6 +82,18 @@ router.post('/bulk', authenticateToken, (req, res) => {
   res.status(201).json({ inserted });
 });
 
+router.put('/:id', authenticateToken, (req, res) => {
+  const { firstName, lastName, phone, email, groupId } = req.body;
+  const filter = orgFilter(req);
+  const sql = 'UPDATE contacts SET first_name = ?, last_name = ?, phone = ?, email = ?, group_id = ? WHERE id = ?' + (filter.organization_id ? ' AND organization_id = ?' : '');
+  const params = [firstName || '', lastName || '', phone, email || '', groupId || null, req.params.id];
+  if (filter.organization_id) params.push(filter.organization_id);
+  db.run(sql, params, function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ updated: this.changes });
+  });
+});
+
 router.delete('/:id', authenticateToken, (req, res) => {
   const filter = orgFilter(req);
   if (filter.organization_id) {

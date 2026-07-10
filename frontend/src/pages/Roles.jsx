@@ -12,6 +12,8 @@ export default function Roles() {
   const [rolePermissions, setRolePermissions] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+  const [newRole, setNewRole] = useState({ name: '', display_name: '', description: '' })
 
   useEffect(() => {
     fetchRoles()
@@ -76,6 +78,18 @@ export default function Roles() {
     }
   }
 
+  const handleCreateRole = async (e) => {
+    e.preventDefault()
+    try {
+      await api.post('/roles', newRole)
+      setShowCreate(false)
+      setNewRole({ name: '', display_name: '', description: '' })
+      fetchRoles()
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erreur')
+    }
+  }
+
   const moduleColors = {
     users: 'text-brand-600 bg-brand-50',
     campaigns: 'text-gem-purple bg-gem-purple/10',
@@ -117,9 +131,15 @@ export default function Roles() {
         </div>
       )}
 
-      <div>
-        <h2 className="text-xl font-bold text-gray-800">{roles.length} rôles</h2>
-        <p className="text-sm text-gray-500">Cliquez sur un rôle pour gérer ses permissions</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">{roles.length} rôles</h2>
+          <p className="text-sm text-gray-500">Cliquez sur un rôle pour gérer ses permissions</p>
+        </div>
+        <button onClick={() => setShowCreate(true)} className="gem-btn-primary flex items-center gap-2">
+          <Plus className="w-4 h-4" />
+          Nouveau rôle
+        </button>
       </div>
 
       {loading ? (
@@ -192,6 +212,44 @@ export default function Roles() {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Nouveau rôle">
+        <form onSubmit={handleCreateRole} className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Identifiant technique</label>
+            <input
+              type="text"
+              placeholder="ex: support_agent"
+              value={newRole.name}
+              onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
+              className="gem-input w-full"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Nom affiché</label>
+            <input
+              type="text"
+              placeholder="ex: Agent support"
+              value={newRole.display_name}
+              onChange={(e) => setNewRole({ ...newRole, display_name: e.target.value })}
+              className="gem-input w-full"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Description</label>
+            <input
+              type="text"
+              placeholder="Description optionnelle"
+              value={newRole.description}
+              onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
+              className="gem-input w-full"
+            />
+          </div>
+          <button type="submit" className="gem-btn-primary w-full">Créer</button>
+        </form>
       </Modal>
     </div>
   )

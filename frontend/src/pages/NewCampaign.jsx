@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Send, Loader2, Users, Smartphone, MessageSquare, Info, ArrowLeft } from 'lucide-react'
+import { Send, Loader2, Users, Smartphone, MessageSquare, Info, ArrowLeft, Calendar, ShieldAlert } from 'lucide-react'
 import api from '../services/api'
+import { useAuth } from '../context/AuthContext'
 
 export default function NewCampaign() {
+  const { hasPermission } = useAuth()
   const [name, setName] = useState('')
   const [message, setMessage] = useState('')
   const [mode, setMode] = useState('group')
@@ -11,6 +13,8 @@ export default function NewCampaign() {
   const [manualNumbers, setManualNumbers] = useState('')
   const [groups, setGroups] = useState([])
   const [sending, setSending] = useState(false)
+  const [scheduleEnabled, setScheduleEnabled] = useState(false)
+  const [scheduleAt, setScheduleAt] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -42,6 +46,9 @@ export default function NewCampaign() {
       } else {
         payload.recipients = manualNumbers.split(/[\n,;]/).map((n) => n.trim()).filter(Boolean)
       }
+      if (scheduleEnabled && scheduleAt) {
+        payload.scheduleAt = scheduleAt
+      }
       await api.post('/campaigns', payload)
       navigate('/campaigns')
     } catch (err) {
@@ -49,6 +56,15 @@ export default function NewCampaign() {
     } finally {
       setSending(false)
     }
+  }
+
+  if (!hasPermission('campaigns.create')) {
+    return (
+      <div className="gem-card p-12 text-center">
+        <ShieldAlert className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <p className="text-gray-500">Vous n'avez pas la permission de créer une campagne</p>
+      </div>
+    )
   }
 
   return (
@@ -139,6 +155,35 @@ export default function NewCampaign() {
             )}
           </div>
 
+          <div className="mb-6">
+            <label className="block text-xs font-medium text-gray-500 mb-2">Moment d'envoi</label>
+            <div className="flex space-x-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setScheduleEnabled(false)}
+                className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${!scheduleEnabled ? 'bg-brand-50 text-brand-700 ring-2 ring-brand-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                <Send className="w-4 h-4 mr-2" /> Envoyer maintenant
+              </button>
+              <button
+                type="button"
+                onClick={() => setScheduleEnabled(true)}
+                className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${scheduleEnabled ? 'bg-brand-50 text-brand-700 ring-2 ring-brand-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                <Calendar className="w-4 h-4 mr-2" /> Programmer
+              </button>
+            </div>
+            {scheduleEnabled && (
+              <input
+                type="datetime-local"
+                value={scheduleAt}
+                onChange={(e) => setScheduleAt(e.target.value)}
+                className="gem-input w-full"
+                required={scheduleEnabled}
+              />
+            )}
+          </div>
+
           <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-100">
             <button
               type="button"
@@ -153,7 +198,7 @@ export default function NewCampaign() {
               className="gem-btn-primary flex items-center disabled:opacity-50"
             >
               {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-              Envoyer la campagne
+              {scheduleEnabled ? 'Programmer la campagne' : 'Envoyer la campagne'}
             </button>
           </div>
         </form>

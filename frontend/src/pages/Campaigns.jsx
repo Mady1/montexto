@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Eye, Loader2, Mail, Inbox, CheckCircle, XCircle, Trash2 } from 'lucide-react'
+import { Plus, Eye, Loader2, Mail, Inbox, CheckCircle, XCircle, Trash2, Edit3 } from 'lucide-react'
 import api from '../services/api'
+import Modal from '../components/Modal'
 
 const statusConfig = {
   sent: { label: 'Envoyé', className: 'bg-green-50 text-green-600', dot: 'bg-green-500' },
@@ -15,6 +16,9 @@ export default function Campaigns() {
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(null)
+  const [editCampaign, setEditCampaign] = useState(null)
+  const [editForm, setEditForm] = useState({ name: '', message: '', type: 'sms', scheduledAt: '' })
+  const [editSaving, setEditSaving] = useState(false)
 
   useEffect(() => {
     fetchCampaigns()
@@ -66,6 +70,35 @@ export default function Campaigns() {
       alert(err.response?.data?.error || 'Erreur')
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  const openEdit = (c) => {
+    setEditCampaign(c)
+    setEditForm({
+      name: c.name,
+      message: c.message,
+      type: c.type,
+      scheduledAt: c.scheduled_at ? c.scheduled_at.slice(0, 16) : '',
+    })
+  }
+
+  const handleEditSave = async (e) => {
+    e.preventDefault()
+    setEditSaving(true)
+    try {
+      await api.put(`/campaigns/${editCampaign.id}`, {
+        name: editForm.name,
+        message: editForm.message,
+        type: editForm.type,
+        scheduledAt: editForm.scheduledAt || null,
+      })
+      setEditCampaign(null)
+      fetchCampaigns()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erreur')
+    } finally {
+      setEditSaving(false)
     }
   }
 
@@ -143,6 +176,15 @@ export default function Campaigns() {
                         <Link to={`/campaigns/${c.id}`} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors" title="Voir">
                           <Eye className="w-4 h-4" />
                         </Link>
+                        {(c.status === 'draft' || c.status === 'scheduled') && (
+                          <button
+                            onClick={() => openEdit(c)}
+                            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+                            title="Modifier"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                        )}
                         {c.status === 'draft' && (
                           <button
                             onClick={() => handleValidate(c.id)}
@@ -181,6 +223,39 @@ export default function Campaigns() {
           </div>
         </div>
       )}
+
+      <Modal open={!!editCampaign} onClose={() => setEditCampaign(null)} title="Modifier la campagne">
+        <form onSubmit={handleEditSave} className="space-y-3">
+          <input
+            type="text"
+            value={editForm.name}
+            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+            className="gem-input w-full"
+            placeholder="Nom de la campagne"
+            required
+          />
+          <textarea
+            value={editForm.message}
+            onChange={(e) => setEditForm({ ...editForm, message: e.target.value })}
+            rows={4}
+            className="gem-input w-full resize-none"
+            placeholder="Message"
+            required
+          />
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Programmer l'envoi (optionnel)</label>
+            <input
+              type="datetime-local"
+              value={editForm.scheduledAt}
+              onChange={(e) => setEditForm({ ...editForm, scheduledAt: e.target.value })}
+              className="gem-input w-full"
+            />
+          </div>
+          <button type="submit" disabled={editSaving} className="gem-btn-primary w-full flex items-center justify-center disabled:opacity-60">
+            {editSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+          </button>
+        </form>
+      </Modal>
     </div>
   )
 }

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Loader2, Mail, Lock, Eye, EyeOff, User, ArrowRight, Sparkles } from 'lucide-react'
+import { Loader2, Mail, Lock, Eye, EyeOff, User, ArrowRight, Sparkles, Building2, Phone } from 'lucide-react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
 export default function Register() {
-  const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '' })
+  const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '', organizationName: '', phone: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -71,10 +71,24 @@ export default function Register() {
               </div>
             </div>
             <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Nom de l'organisation</label>
+              <div className="relative">
+                <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-400" />
+                <input name="organizationName" value={form.organizationName} onChange={handleChange} className="gem-input w-full pl-11" placeholder="Ma société" required />
+              </div>
+            </div>
+            <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">Email</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-400" />
                 <input type="email" name="email" value={form.email} onChange={handleChange} className="gem-input w-full pl-11" placeholder="vous@exemple.com" required />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Téléphone <span className="text-gray-300">(optionnel)</span></label>
+              <div className="relative">
+                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-400" />
+                <input type="tel" name="phone" value={form.phone} onChange={handleChange} className="gem-input w-full pl-11" placeholder="+225..." />
               </div>
             </div>
             <div>

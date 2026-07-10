@@ -38,6 +38,22 @@ router.post('/', authenticateToken, (req, res) => {
   );
 });
 
+router.put('/:id', authenticateToken, (req, res) => {
+  const { name, description } = req.body;
+  if (!name) return res.status(400).json({ error: 'Name required' });
+  if (req.user.role_name === 'super_admin') {
+    db.run('UPDATE contact_groups SET name = ?, description = ? WHERE id = ?', [name, description || '', req.params.id], function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ updated: this.changes });
+    });
+  } else {
+    db.run('UPDATE contact_groups SET name = ?, description = ? WHERE id = ? AND organization_id = ?', [name, description || '', req.params.id, req.user.organization_id], function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ updated: this.changes });
+    });
+  }
+});
+
 router.delete('/:id', authenticateToken, (req, res) => {
   if (req.user.role_name === 'super_admin') {
     db.run('DELETE FROM contact_groups WHERE id = ?', [req.params.id], function (err) {

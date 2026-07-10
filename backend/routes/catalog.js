@@ -42,6 +42,22 @@ router.post('/', authenticateToken, (req, res) => {
   );
 });
 
+router.put('/:id', authenticateToken, (req, res) => {
+  const { name, content, type = 'sms' } = req.body;
+  if (!name || !content) return res.status(400).json({ error: 'Name and content required' });
+  if (req.user.role_name === 'super_admin') {
+    db.run('UPDATE catalog_items SET name = ?, content = ?, type = ? WHERE id = ?', [name, content, type, req.params.id], function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ updated: this.changes });
+    });
+  } else {
+    db.run('UPDATE catalog_items SET name = ?, content = ?, type = ? WHERE id = ? AND organization_id = ?', [name, content, type, req.params.id, req.user.organization_id], function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ updated: this.changes });
+    });
+  }
+});
+
 router.delete('/:id', authenticateToken, (req, res) => {
   if (req.user.role_name === 'super_admin') {
     db.run('DELETE FROM catalog_items WHERE id = ?', [req.params.id], function (err) {
