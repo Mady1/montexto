@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
+import { Loader2 } from 'lucide-react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import Modal from '../components/Modal'
+import Pagination from '../components/Pagination'
 import { Inbox, Phone, MessageSquare, CheckCheck, Trash2, Search, X } from 'lucide-react'
 
 export default function InboxPage() {
@@ -69,8 +72,8 @@ export default function InboxPage() {
   return (
     <div className="space-y-6">
       {/* Stats cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-gray-100">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="gem-card p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
               <Inbox className="w-5 h-5 text-brand-600" />
@@ -81,7 +84,7 @@ export default function InboxPage() {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-2xl p-5 border border-gray-100">
+        <div className="gem-card p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
               <MessageSquare className="w-5 h-5 text-amber-600" />
@@ -92,7 +95,7 @@ export default function InboxPage() {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-2xl p-5 border border-gray-100">
+        <div className="gem-card p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
               <Phone className="w-5 h-5 text-emerald-600" />
@@ -106,7 +109,7 @@ export default function InboxPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1">
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -125,15 +128,17 @@ export default function InboxPage() {
             Non lus uniquement
           </button>
         </div>
-        <button onClick={handleMarkAllRead} className="gem-btn-secondary flex items-center gap-2 text-sm">
+        <button onClick={handleMarkAllRead} className="gem-btn-secondary flex items-center justify-center gap-2 text-sm">
           <CheckCheck className="w-4 h-4" /> Tout marquer lu
         </button>
       </div>
 
       {/* Messages list */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <div className="gem-card overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-gray-400">Chargement...</div>
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+          </div>
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
             <Inbox className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -179,41 +184,27 @@ export default function InboxPage() {
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 disabled:opacity-40 hover:bg-gray-50">Précédent</button>
-          <span className="text-sm text-gray-500">Page {page} / {totalPages}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 disabled:opacity-40 hover:bg-gray-50">Suivant</button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
-      {/* Detail modal */}
-      {selectedMsg && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedMsg(null)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-800">SMS reçu</h3>
-              <button onClick={() => setSelectedMsg(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+      <Modal open={!!selectedMsg} onClose={() => setSelectedMsg(null)} title="SMS reçu">
+        {selectedMsg && (
+          <div className="space-y-3">
+            <div>
+              <div className="text-xs text-gray-400 mb-1">Expéditeur</div>
+              <div className="font-medium text-gray-800">{selectedMsg.from_phone}</div>
+              {selectedMsg.first_name && <div className="text-sm text-gray-500">{selectedMsg.first_name} {selectedMsg.last_name}</div>}
             </div>
-            <div className="space-y-3">
-              <div>
-                <div className="text-xs text-gray-400 mb-1">Expéditeur</div>
-                <div className="font-medium text-gray-800">{selectedMsg.from_phone}</div>
-                {selectedMsg.first_name && <div className="text-sm text-gray-500">{selectedMsg.first_name} {selectedMsg.last_name}</div>}
-              </div>
-              <div>
-                <div className="text-xs text-gray-400 mb-1">Message</div>
-                <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-700">{selectedMsg.message}</div>
-              </div>
-              <div className="flex items-center gap-4 text-xs text-gray-400">
-                <span>{new Date(selectedMsg.received_at).toLocaleString('fr-FR')}</span>
-                {selectedMsg.gateway_provider && <span>via {selectedMsg.gateway_provider}</span>}
-              </div>
+            <div>
+              <div className="text-xs text-gray-400 mb-1">Message</div>
+              <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-700">{selectedMsg.message}</div>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-gray-400">
+              <span>{new Date(selectedMsg.received_at).toLocaleString('fr-FR')}</span>
+              {selectedMsg.gateway_provider && <span>via {selectedMsg.gateway_provider}</span>}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   )
 }
