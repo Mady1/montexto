@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { ThemeProvider } from './context/ThemeContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -29,34 +30,36 @@ function PrivateRoute({ children }) {
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-            <Route index element={<Dashboard />} />
-            <Route path="campaigns" element={<Campaigns />} />
-            <Route path="campaigns/new" element={<NewCampaign />} />
-            <Route path="catalog" element={<Catalog />} />
-            <Route path="groups" element={<Groups />} />
-            <Route path="contacts" element={<Contacts />} />
-            <Route path="api-keys" element={<ApiKeys />} />
-            <Route path="statistics" element={<Statistics />} />
-            <Route path="organizations" element={<Organizations />} />
-            <Route path="users" element={<Users />} />
-            <Route path="roles" element={<Roles />} />
-            <Route path="audit" element={<Audit />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="gateways" element={<Gateways />} />
-            <Route path="inbox" element={<Inbox />} />
-            <Route path="blacklist" element={<Blacklist />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
+              <Route index element={<Dashboard />} />
+              <Route path="campaigns" element={<Campaigns />} />
+              <Route path="campaigns/new" element={<NewCampaign />} />
+              <Route path="catalog" element={<Catalog />} />
+              <Route path="groups" element={<Groups />} />
+              <Route path="contacts" element={<Contacts />} />
+              <Route path="api-keys" element={<ApiKeys />} />
+              <Route path="statistics" element={<Statistics />} />
+              <Route path="organizations" element={<Organizations />} />
+              <Route path="users" element={<Users />} />
+              <Route path="roles" element={<Roles />} />
+              <Route path="audit" element={<Audit />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="gateways" element={<Gateways />} />
+              <Route path="inbox" element={<Inbox />} />
+              <Route path="blacklist" element={<Blacklist />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 

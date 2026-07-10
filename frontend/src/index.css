@@ -5,14 +5,41 @@
 @tailwind utilities;
 
 :root {
-  --gem-bg: #f8f9fc;
+  --gem-bg: #f6f7fb;
   --gem-surface: #ffffff;
-  --gem-border: #e8eaed;
-  --gem-text: #1a1a2e;
-  --gem-muted: #5f6368;
-  --gem-accent: #4285f4;
-  --gem-accent2: #9b72cb;
-  --gem-accent3: #d96570;
+  --gem-surface-alt: #ffffff;
+  --gem-border: #e5e7ef;
+  --gem-text: #16182b;
+  --gem-muted: #6b7280;
+  --gem-subtle: #9aa1ac;
+  --gem-accent: #5b6cf9;
+  --gem-accent-strong: #3d4de0;
+  --gem-accent2: #9b6cf9;
+  --gem-accent3: #f96c9b;
+  --gem-shadow: rgba(20, 22, 40, 0.06);
+  --gem-shadow-strong: rgba(20, 22, 40, 0.12);
+  --gem-overlay: rgba(15, 16, 30, 0.35);
+  --gem-scrollbar: #d1d5db;
+  --gem-scrollbar-hover: #9ca3af;
+}
+
+[data-theme='dark'] {
+  --gem-bg: #101120;
+  --gem-surface: #181a2e;
+  --gem-surface-alt: #1f2138;
+  --gem-border: #2b2e4a;
+  --gem-text: #eef0fb;
+  --gem-muted: #a3a8c3;
+  --gem-subtle: #6f748f;
+  --gem-accent: #7c8bff;
+  --gem-accent-strong: #97a2ff;
+  --gem-accent2: #b18cff;
+  --gem-accent3: #ff8fb2;
+  --gem-shadow: rgba(0, 0, 0, 0.35);
+  --gem-shadow-strong: rgba(0, 0, 0, 0.5);
+  --gem-overlay: rgba(0, 0, 0, 0.55);
+  --gem-scrollbar: #383c5c;
+  --gem-scrollbar-hover: #4a4f78;
 }
 
 * {
@@ -24,6 +51,7 @@ body {
   background: var(--gem-bg);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   color: var(--gem-text);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Gemini-style scrollbar */
@@ -35,11 +63,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: var(--gem-scrollbar);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: var(--gem-scrollbar-hover);
 }
 
 .scrollbar-hide::-webkit-scrollbar {
@@ -50,64 +78,78 @@ body {
   scrollbar-width: none;
 }
 
-/* Gemini glass card */
 @layer components {
   .glass-card {
-    background: rgba(255, 255, 255, 0.75);
+    background: color-mix(in srgb, var(--gem-surface) 75%, transparent);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+    border: 1px solid color-mix(in srgb, var(--gem-surface) 60%, transparent);
+    box-shadow: 0 1px 3px var(--gem-shadow), 0 1px 2px var(--gem-shadow);
   }
 
   .gem-card {
-    background: #ffffff;
-    border: 1px solid #e8eaed;
+    background: var(--gem-surface);
+    border: 1px solid var(--gem-border);
     border-radius: 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    box-shadow: 0 1px 3px var(--gem-shadow);
+    transition: box-shadow 0.2s ease, transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
   }
   .gem-card:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 16px var(--gem-shadow-strong);
+  }
+
+  .surface-card {
+    background: var(--gem-surface);
+    border: 1px solid var(--gem-border);
+    border-radius: 16px;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .text-muted {
+    color: var(--gem-muted);
+  }
+
+  .text-subtle {
+    color: var(--gem-subtle);
   }
 
   .gem-input {
-    background: #f1f3f4;
+    background: var(--gem-bg);
     border: 1px solid transparent;
     border-radius: 12px;
     padding: 0.625rem 1rem;
     font-size: 0.875rem;
-    color: #1a1a2e;
+    color: var(--gem-text);
     transition: all 0.2s ease;
     outline: none;
   }
   .gem-input:focus {
-    background: #ffffff;
-    border-color: #4285f4;
-    box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.1);
+    background: var(--gem-surface);
+    border-color: var(--gem-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gem-accent) 15%, transparent);
   }
   .gem-input::placeholder {
-    color: #9aa0a6;
+    color: var(--gem-subtle);
   }
 
   .gem-btn-primary {
-    background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);
+    background: linear-gradient(135deg, var(--gem-accent) 0%, var(--gem-accent-strong) 100%);
     color: #ffffff;
     border-radius: 12px;
     padding: 0.625rem 1.5rem;
     font-weight: 500;
     font-size: 0.875rem;
     transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(26, 115, 232, 0.3);
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--gem-accent-strong) 40%, transparent);
   }
   .gem-btn-primary:hover {
-    box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--gem-accent-strong) 50%, transparent);
     transform: translateY(-1px);
   }
 
   .gem-btn-ghost {
     background: transparent;
-    color: #5f6368;
+    color: var(--gem-muted);
     border-radius: 12px;
     padding: 0.625rem 1.5rem;
     font-weight: 500;
@@ -115,8 +157,23 @@ body {
     transition: all 0.2s ease;
   }
   .gem-btn-ghost:hover {
-    background: #f1f3f4;
-    color: #1a1a2e;
+    background: var(--gem-bg);
+    color: var(--gem-text);
+  }
+
+  .gem-btn-secondary {
+    background: var(--gem-surface-alt);
+    border: 1px solid var(--gem-border);
+    color: var(--gem-text);
+    border-radius: 12px;
+    padding: 0.625rem 1.5rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+  }
+  .gem-btn-secondary:hover {
+    background: var(--gem-bg);
+    border-color: var(--gem-accent);
   }
 
   .gem-badge {
@@ -131,7 +188,7 @@ body {
   }
 
   .gem-gradient-text {
-    background: linear-gradient(135deg, #4285f4 0%, #9b72cb 50%, #d96570 100%);
+    background: linear-gradient(135deg, var(--gem-accent) 0%, var(--gem-accent2) 50%, var(--gem-accent3) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -158,7 +215,7 @@ body {
   100% { background-position: 200% 0; }
 }
 .shimmer {
-  background: linear-gradient(90deg, #f1f3f4 25%, #e8eaed 50%, #f1f3f4 75%);
+  background: linear-gradient(90deg, var(--gem-border) 25%, var(--gem-bg) 50%, var(--gem-border) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

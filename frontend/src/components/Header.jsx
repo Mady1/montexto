@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { Bell, HelpCircle, ChevronDown, Search, Check, X, Inbox } from 'lucide-react'
+import { Bell, HelpCircle, ChevronDown, Search, Check, X, Inbox, Sun, Moon } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import api from '../services/api'
 
 const pageTitles = {
@@ -32,6 +33,7 @@ const notifColors = {
 
 export default function Header() {
   const { user } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const location = useLocation()
   const { title, sub } = pageTitles[location.pathname] || { title: 'Montexto', sub: '' }
   const [notifications, setNotifications] = useState([])
@@ -88,6 +90,13 @@ export default function Header() {
             className="bg-transparent text-sm border-none outline-none flex-1 placeholder:text-gray-400 text-gray-700"
           />
         </div>
+        <button
+          onClick={toggleTheme}
+          aria-label="Basculer le thème"
+          className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all"
+        >
+          {theme === 'dark' ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
+        </button>
         <button className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all">
           <HelpCircle className="w-[18px] h-[18px]" />
         </button>

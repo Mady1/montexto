@@ -103,7 +103,7 @@ export default function Contacts() {
           <button onClick={() => { setShowCsv(true); setShowBulk(false) }} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${showCsv ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-500'}`}>Import CSV</button>
         </div>
 
-        {!showBulk ? (
+        {!showBulk && !showCsv ? (
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <input name="firstName" value={form.firstName} onChange={handleChange} placeholder="Prénom" className="gem-input" />
             <input name="lastName" value={form.lastName} onChange={handleChange} placeholder="Nom" className="gem-input" />
@@ -115,7 +115,7 @@ export default function Contacts() {
               <Plus className="w-4 h-4 mr-2" /> Ajouter
             </button>
           </form>
-        ) : (
+        ) : showBulk ? (
           <form onSubmit={handleBulkSubmit}>
             <textarea
               value={bulk}
