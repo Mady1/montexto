@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import api from '../services/api'
-import { ScrollText, Search, Filter, ChevronLeft, ChevronRight, Activity, LogIn, LogOut, Edit3, Trash2, Plus, Mail } from 'lucide-react'
+import { ScrollText, Search, Filter, Activity, LogIn, LogOut, Edit3, Trash2, Plus, Mail, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import Pagination from '../components/Pagination'
 
 const actionIcons = {
   'auth.login': LogIn,
@@ -127,7 +128,9 @@ export default function Audit() {
 
       {/* Logs table */}
       {loading ? (
-        <div className="gem-card p-8 text-center text-gray-400">Chargement...</div>
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        </div>
       ) : logs.length === 0 ? (
         <div className="gem-card p-12 text-center">
           <ScrollText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -135,6 +138,7 @@ export default function Audit() {
         </div>
       ) : (
         <div className="gem-card overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100">
@@ -174,31 +178,11 @@ export default function Audit() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <button
-            onClick={() => setPage(Math.max(1, page - 1))}
-            disabled={page === 1}
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-sm text-gray-500">
-            Page {page} / {totalPages}
-          </span>
-          <button
-            onClick={() => setPage(Math.min(totalPages, page + 1))}
-            disabled={page === totalPages}
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   )
 }

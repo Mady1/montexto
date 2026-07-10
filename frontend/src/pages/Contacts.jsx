@@ -268,6 +268,7 @@ export default function Contacts() {
         </div>
       ) : (
         <div className="gem-card overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead>
               <tr className="border-b border-gray-100">
@@ -309,6 +310,7 @@ export default function Contacts() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
