@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Server, Trash2, Star, Loader2, X, Check, Radio } from 'lucide-react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import Modal from '../components/Modal'
 
 const providerGradients = {
   twilio: 'from-red-500 to-rose-600',
@@ -177,84 +178,75 @@ export default function Gateways() {
         </div>
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-800">{editing ? 'Modifier' : 'Nouvelle'} passerelle</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={`${editing ? 'Modifier' : 'Nouvelle'} passerelle`}>
+        <div className="max-h-[70vh] overflow-y-auto">
+          {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-sm mb-3">{error}</div>}
+
+          <form onSubmit={handleSave} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Nom</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className="gem-input w-full"
+                placeholder="ex: Twilio Principal"
+                required
+              />
             </div>
-
-            {error && <div className="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-sm mb-3">{error}</div>}
-
-            <form onSubmit={handleSave} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Nom</label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="gem-input w-full"
-                  placeholder="ex: Twilio Principal"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Fournisseur</label>
-                <select
-                  value={form.provider}
-                  onChange={(e) => setForm({ ...form, provider: e.target.value })}
-                  className="gem-input w-full"
-                >
-                  <option value="twilio">Twilio</option>
-                  <option value="vonage">Vonage</option>
-                  <option value="messagebird">MessageBird</option>
-                  <option value="orange">Orange SMS</option>
-                  <option value="mt">MT Mobile</option>
-                  <option value="custom">Personnalisé</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Configuration (JSON)</label>
-                <textarea
-                  value={JSON.stringify(form.config, null, 2)}
-                  onChange={(e) => {
-                    try { setForm({ ...form, config: JSON.parse(e.target.value) }) } catch {}
-                  }}
-                  className="gem-input w-full font-mono text-xs"
-                  rows={5}
-                  placeholder='{"accountSid": "...", "authToken": "...", "from": "+123..."}'
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Statut</label>
-                <select
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="gem-input w-full"
-                >
-                  <option value="active">Actif</option>
-                  <option value="inactive">Inactif</option>
-                </select>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.isDefault}
-                  onChange={(e) => setForm({ ...form, isDefault: e.target.checked })}
-                  className="w-4 h-4 rounded text-brand-600"
-                />
-                <span className="text-sm text-gray-600">Définir comme passerelle par défaut</span>
-              </label>
-              <button type="submit" disabled={saving} className="gem-btn-primary w-full flex items-center justify-center disabled:opacity-60">
-                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <>{editing ? 'Modifier' : 'Créer'} <Check className="w-4 h-4 ml-2" /></>}
-              </button>
-            </form>
-          </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Fournisseur</label>
+              <select
+                value={form.provider}
+                onChange={(e) => setForm({ ...form, provider: e.target.value })}
+                className="gem-input w-full"
+              >
+                <option value="twilio">Twilio</option>
+                <option value="vonage">Vonage</option>
+                <option value="messagebird">MessageBird</option>
+                <option value="orange">Orange SMS</option>
+                <option value="mt">MT Mobile</option>
+                <option value="custom">Personnalisé</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Configuration (JSON)</label>
+              <textarea
+                value={JSON.stringify(form.config, null, 2)}
+                onChange={(e) => {
+                  try { setForm({ ...form, config: JSON.parse(e.target.value) }) } catch {}
+                }}
+                className="gem-input w-full font-mono text-xs"
+                rows={5}
+                placeholder='{"accountSid": "...", "authToken": "...", "from": "+123..."}'
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Statut</label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value })}
+                className="gem-input w-full"
+              >
+                <option value="active">Actif</option>
+                <option value="inactive">Inactif</option>
+              </select>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.isDefault}
+                onChange={(e) => setForm({ ...form, isDefault: e.target.checked })}
+                className="w-4 h-4 rounded text-brand-600"
+              />
+              <span className="text-sm text-gray-600">Définir comme passerelle par défaut</span>
+            </label>
+            <button type="submit" disabled={saving} className="gem-btn-primary w-full flex items-center justify-center disabled:opacity-60">
+              {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <>{editing ? 'Modifier' : 'Créer'} <Check className="w-4 h-4 ml-2" /></>}
+            </button>
+          </form>
         </div>
-      )}
+      </Modal>
     </div>
   )
 }

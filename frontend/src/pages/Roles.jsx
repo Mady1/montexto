@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import api from '../services/api'
-import { KeyRound, Shield, Plus, Trash2, X, Check, Lock } from 'lucide-react'
+import { KeyRound, Shield, Plus, Trash2, X, Check, Lock, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import Modal from '../components/Modal'
 
 export default function Roles() {
   const { hasRole } = useAuth()
@@ -122,7 +123,9 @@ export default function Roles() {
       </div>
 
       {loading ? (
-        <div className="gem-card p-8 text-center text-gray-400">Chargement...</div>
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {roles.map((role) => (
@@ -148,23 +151,20 @@ export default function Roles() {
         </div>
       )}
 
-      {/* Permissions modal */}
-      {selectedRole && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedRole(null)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-bold text-gray-800">Permissions — {selectedRole.display_name}</h3>
-                <p className="text-sm text-gray-500">{selectedRole.description}</p>
-              </div>
-              <button onClick={() => setSelectedRole(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-            </div>
-
+      <Modal
+        open={!!selectedRole}
+        onClose={() => setSelectedRole(null)}
+        maxWidth="max-w-2xl"
+        title={selectedRole ? `Permissions — ${selectedRole.display_name}` : ''}
+      >
+        {selectedRole && (
+          <div className="max-h-[70vh] overflow-y-auto">
+            <p className="text-sm text-gray-500 -mt-2 mb-4">{selectedRole.description}</p>
             <div className="space-y-4">
               {Object.entries(groupedPermissions).map(([module, perms]) => (
                 <div key={module}>
                   <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 capitalize">{module}</div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {perms.map((p) => (
                       <button
                         key={p.id}
@@ -175,7 +175,7 @@ export default function Roles() {
                             : 'bg-gray-50 text-gray-500 border border-transparent hover:bg-gray-100'
                         }`}
                       >
-                        <div className={`w-4 h-4 rounded flex items-center justify-center ${rolePermissions.has(p.id) ? 'bg-brand-500 text-white' : 'bg-gray-200'}`}>
+                        <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${rolePermissions.has(p.id) ? 'bg-brand-500 text-white' : 'bg-gray-200'}`}>
                           {rolePermissions.has(p.id) && <Check className="w-3 h-3" />}
                         </div>
                         <span className="text-left">{p.description}</span>
@@ -191,8 +191,8 @@ export default function Roles() {
               <button onClick={savePermissions} className="gem-btn-primary px-4">Enregistrer ({rolePermissions.size})</button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   )
 }

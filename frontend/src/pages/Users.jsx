@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import api from '../services/api'
-import { Shield, Plus, Trash2, Edit3, X, Search, Lock, Mail, Phone, Building2, Unlock } from 'lucide-react'
+import { Shield, Plus, Trash2, Edit3, X, Search, Lock, Mail, Phone, Building2, Unlock, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import Modal from '../components/Modal'
 
 export default function Users() {
   const { hasRole, user: currentUser } = useAuth()
@@ -139,7 +140,9 @@ export default function Users() {
       </div>
 
       {loading ? (
-        <div className="gem-card p-8 text-center text-gray-400">Chargement...</div>
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        </div>
       ) : users.length === 0 ? (
         <div className="gem-card p-12 text-center">
           <Shield className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -147,6 +150,7 @@ export default function Users() {
         </div>
       ) : (
         <div className="gem-card overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100">
@@ -209,48 +213,40 @@ export default function Users() {
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* Form modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-800">{editUser ? 'Modifier' : 'Nouvel'} utilisateur</h3>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-3">
-              {!editUser && (
-                <>
-                  <input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="gem-input w-full" required />
-                  <input type="password" placeholder="Mot de passe" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="gem-input w-full" required />
-                </>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <input type="text" placeholder="Prénom" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} className="gem-input w-full" />
-                <input type="text" placeholder="Nom" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} className="gem-input w-full" />
-              </div>
-              <input type="tel" placeholder="Téléphone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="gem-input w-full" />
-              <select value={form.role_id} onChange={(e) => setForm({ ...form, role_id: e.target.value })} className="gem-input w-full">
-                <option value="">— Sélectionner un rôle —</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>{r.display_name}</option>
-                ))}
-              </select>
-              {hasRole('super_admin') && (
-                <select value={form.organization_id} onChange={(e) => setForm({ ...form, organization_id: e.target.value })} className="gem-input w-full">
-                  <option value="">— Sélectionner une organisation —</option>
-                  {orgs.map((o) => (
-                    <option key={o.id} value={o.id}>{o.name}</option>
-                  ))}
-                </select>
-              )}
-              <button type="submit" className="gem-btn-primary w-full">{editUser ? 'Mettre à jour' : 'Créer'}</button>
-            </form>
           </div>
         </div>
       )}
+
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={`${editUser ? 'Modifier' : 'Nouvel'} utilisateur`}>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {!editUser && (
+            <>
+              <input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="gem-input w-full" required />
+              <input type="password" placeholder="Mot de passe" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="gem-input w-full" required />
+            </>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <input type="text" placeholder="Prénom" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} className="gem-input w-full" />
+            <input type="text" placeholder="Nom" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} className="gem-input w-full" />
+          </div>
+          <input type="tel" placeholder="Téléphone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="gem-input w-full" />
+          <select value={form.role_id} onChange={(e) => setForm({ ...form, role_id: e.target.value })} className="gem-input w-full">
+            <option value="">— Sélectionner un rôle —</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>{r.display_name}</option>
+            ))}
+          </select>
+          {hasRole('super_admin') && (
+            <select value={form.organization_id} onChange={(e) => setForm({ ...form, organization_id: e.target.value })} className="gem-input w-full">
+              <option value="">— Sélectionner une organisation —</option>
+              {orgs.map((o) => (
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+            </select>
+          )}
+          <button type="submit" className="gem-btn-primary w-full">{editUser ? 'Mettre à jour' : 'Créer'}</button>
+        </form>
+      </Modal>
     </div>
   )
 }

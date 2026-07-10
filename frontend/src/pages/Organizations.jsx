@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import api from '../services/api'
-import { Building2, Plus, Trash2, Edit3, X, Wallet, Mail, Phone, MapPin, TrendingUp, TrendingDown } from 'lucide-react'
+import { Building2, Plus, Trash2, Edit3, X, Wallet, Mail, Phone, MapPin, TrendingUp, TrendingDown, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import Modal from '../components/Modal'
 
 export default function Organizations() {
   const { hasRole } = useAuth()
@@ -126,7 +127,9 @@ export default function Organizations() {
       </div>
 
       {loading ? (
-        <div className="gem-card p-8 text-center text-gray-400">Chargement...</div>
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        </div>
       ) : orgs.length === 0 ? (
         <div className="gem-card p-12 text-center">
           <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -178,46 +181,35 @@ export default function Organizations() {
         </div>
       )}
 
-      {/* Create form modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-800">Nouvelle organisation</h3>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <input type="text" placeholder="Nom" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="gem-input w-full" required />
-              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="gem-input w-full">
-                <option value="entreprise">Entreprise</option>
-                <option value="banque">Banque</option>
-                <option value="ecole">École</option>
-                <option value="ong">ONG</option>
-                <option value="administration">Administration</option>
-              </select>
-              <input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="gem-input w-full" />
-              <input type="tel" placeholder="Téléphone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="gem-input w-full" />
-              <input type="text" placeholder="Adresse" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="gem-input w-full" />
-              <input type="number" placeholder="Crédits SMS initiaux" value={form.sms_balance} onChange={(e) => setForm({ ...form, sms_balance: Number(e.target.value) })} className="gem-input w-full" />
-              <button type="submit" className="gem-btn-primary w-full">Créer</button>
-            </form>
-          </div>
-        </div>
-      )}
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Nouvelle organisation">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input type="text" placeholder="Nom" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="gem-input w-full" required />
+          <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="gem-input w-full">
+            <option value="entreprise">Entreprise</option>
+            <option value="banque">Banque</option>
+            <option value="ecole">École</option>
+            <option value="ong">ONG</option>
+            <option value="administration">Administration</option>
+          </select>
+          <input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="gem-input w-full" />
+          <input type="tel" placeholder="Téléphone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="gem-input w-full" />
+          <input type="text" placeholder="Adresse" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="gem-input w-full" />
+          <input type="number" placeholder="Crédits SMS initiaux" value={form.sms_balance} onChange={(e) => setForm({ ...form, sms_balance: Number(e.target.value) })} className="gem-input w-full" />
+          <button type="submit" className="gem-btn-primary w-full">Créer</button>
+        </form>
+      </Modal>
 
-      {/* Credits modal */}
-      {showCredits && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowCredits(null)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-bold text-gray-800">Crédits SMS — {showCredits.name}</h3>
-                <p className="text-sm text-gray-500">Solde actuel: <span className="font-bold text-brand-600">{showCredits.sms_balance?.toLocaleString()}</span></p>
-              </div>
-              <button onClick={() => setShowCredits(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-            </div>
+      <Modal
+        open={!!showCredits}
+        onClose={() => setShowCredits(null)}
+        maxWidth="max-w-lg"
+        title={showCredits ? `Crédits SMS — ${showCredits.name}` : ''}
+      >
+        {showCredits && (
+          <div className="max-h-[70vh] overflow-y-auto">
+            <p className="text-sm text-gray-500 -mt-2 mb-4">Solde actuel: <span className="font-bold text-brand-600">{showCredits.sms_balance?.toLocaleString()}</span></p>
 
-            <div className="flex gap-2 mb-4">
+            <div className="flex flex-col sm:flex-row gap-2 mb-4">
               <input type="number" placeholder="Montant" value={creditAmount} onChange={(e) => setCreditAmount(e.target.value)} className="gem-input flex-1" />
               <input type="text" placeholder="Description" value={creditDesc} onChange={(e) => setCreditDesc(e.target.value)} className="gem-input flex-1" />
               <button onClick={addCredits} className="gem-btn-primary px-4">OK</button>
@@ -244,8 +236,8 @@ export default function Organizations() {
               ))}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   )
 }
