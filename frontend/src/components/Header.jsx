@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Bell, HelpCircle, ChevronDown, Search, Check, X, Inbox, Sun, Moon } from 'lucide-react'
+import { Bell, HelpCircle, ChevronDown, Search, Check, X, Inbox, Sun, Moon, Menu } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -31,7 +31,7 @@ const notifColors = {
   error: 'bg-red-50 text-red-600',
 }
 
-export default function Header() {
+export default function Header({ onMenuClick = () => {} }) {
   const { user } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const location = useLocation()
@@ -76,9 +76,16 @@ export default function Header() {
   }
 
   return (
-    <header className="h-16 bg-white/70 backdrop-blur-xl border-b border-gray-200/60 flex items-center justify-between px-8 sticky top-0 z-10">
-      <div className="flex items-center space-x-3">
-        <h1 className="text-lg font-semibold text-gray-800">{title}</h1>
+    <header className="h-16 bg-white/70 backdrop-blur-xl border-b border-gray-200/60 flex items-center justify-between px-4 sm:px-8 sticky top-0 z-10">
+      <div className="flex items-center space-x-3 min-w-0">
+        <button
+          onClick={onMenuClick}
+          aria-label="Ouvrir le menu"
+          className="lg:hidden w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-all flex-shrink-0 -ml-1"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <h1 className="text-lg font-semibold text-gray-800 truncate">{title}</h1>
         {sub && <span className="hidden md:inline text-xs text-gray-400 font-medium">— {sub}</span>}
       </div>
       <div className="flex items-center space-x-2">
