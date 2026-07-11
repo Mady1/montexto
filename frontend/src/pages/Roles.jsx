@@ -14,6 +14,8 @@ export default function Roles() {
   const [error, setError] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [newRole, setNewRole] = useState({ name: '', display_name: '', description: '' })
+  const [cloneFromId, setCloneFromId] = useState('')
+  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
     fetchRoles()
@@ -80,13 +82,24 @@ export default function Roles() {
 
   const handleCreateRole = async (e) => {
     e.preventDefault()
+    setCreating(true)
     try {
-      await api.post('/roles', newRole)
+      const res = await api.post('/roles', newRole)
+      if (cloneFromId) {
+        const source = await api.get(`/roles/${cloneFromId}`)
+        const permissionIds = (source.data.permissions || []).map((p) => p.id)
+        if (permissionIds.length > 0) {
+          await api.put(`/roles/${res.data.id}/permissions`, { permissionIds })
+        }
+      }
       setShowCreate(false)
       setNewRole({ name: '', display_name: '', description: '' })
+      setCloneFromId('')
       fetchRoles()
     } catch (err) {
       setError(err.response?.data?.error || 'Erreur')
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -248,7 +261,18 @@ export default function Roles() {
               className="gem-input w-full"
             />
           </div>
-          <button type="submit" className="gem-btn-primary w-full">Créer</button>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Copier les permissions de <span className="text-gray-300">(optionnel)</span></label>
+            <select value={cloneFromId} onChange={(e) => setCloneFromId(e.target.value)} className="gem-input w-full">
+              <option value="">— Partir sans permission —</option>
+              {roles.map((r) => (
+                <option key={r.id} value={r.id}>{r.display_name}</option>
+              ))}
+            </select>
+          </div>
+          <button type="submit" disabled={creating} className="gem-btn-primary w-full flex items-center justify-center disabled:opacity-60">
+            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Créer'}
+          </button>
         </form>
       </Modal>
     </div>
