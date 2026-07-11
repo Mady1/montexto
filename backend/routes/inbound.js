@@ -154,7 +154,7 @@ router.post('/status', express.urlencoded({ extended: false }), (req, res) => {
 
 // ─── List inbound SMS (authenticated) ────────────────────────────
 router.get('/inbox', authenticateToken, (req, res) => {
-  const { page = 1, limit = 50, unreadOnly } = req.query;
+  const { page = 1, limit = 50, unreadOnly, phone } = req.query;
   const offset = (page - 1) * limit;
   const isSuperAdmin = req.user.role_name === 'super_admin';
 
@@ -166,6 +166,10 @@ router.get('/inbox', authenticateToken, (req, res) => {
   }
   if (unreadOnly === 'true') {
     where += where ? ' AND i.is_read = 0' : 'WHERE i.is_read = 0';
+  }
+  if (phone) {
+    where += where ? ' AND i.from_phone = ?' : 'WHERE i.from_phone = ?';
+    params.push(phone);
   }
 
   db.get(
