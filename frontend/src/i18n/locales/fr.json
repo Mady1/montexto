@@ -1,0 +1,46 @@
+{
+  "sidebar": {
+    "menu": "Menu",
+    "administration": "Administration",
+    "platform": "SMS PLATFORM",
+    "defaultUser": "Utilisateur",
+    "logout": "Déconnexion",
+    "nav": {
+      "dashboard": "Tableau de bord",
+      "campaigns": "Campagnes",
+      "catalog": "Catalogue",
+      "groups": "Groupe de contacts",
+      "contacts": "Contacts",
+      "inbox": "Boîte de réception",
+      "blacklist": "Liste noire",
+      "apiKeys": "API développeur",
+      "statistics": "Statistiques",
+      "organizations": "Organisations",
+      "users": "Utilisateurs",
+      "roles": "Rôles & Permissions",
+      "audit": "Journal d'audit",
+      "gateways": "Passerelles SMS"
+    }
+  },
+  "login": {
+    "tagline": "Plateforme d'envoi SMS multicanal",
+    "signInTitle": "Connectez-vous à votre compte",
+    "otpTitle": "Vérification OTP",
+    "otpIncomplete": "Code OTP incomplet",
+    "otpInvalid": "Code OTP invalide",
+    "otpResendError": "Erreur lors du renvoi",
+    "connectionError": "Erreur de connexion",
+    "otpSentTo": "Un code à 6 chiffres a été envoyé",
+    "otpDemoCode": "Code démo",
+    "verify": "Vérifier",
+    "back": "Retour",
+    "resendCode": "Renvoyer le code",
+    "email": "Email",
+    "password": "Mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "signIn": "Se connecter",
+    "demoAccounts": "Comptes de démonstration",
+    "noAccount": "Pas de compte ?",
+    "createAccount": "Créer un compte"
+  }
+}

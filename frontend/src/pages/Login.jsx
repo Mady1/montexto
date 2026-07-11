@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Loader2, Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles, Zap, KeyRound, ArrowLeft, ShieldCheck } from 'lucide-react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
@@ -13,6 +14,7 @@ const roleColors = {
 }
 
 export default function Login() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -52,7 +54,7 @@ export default function Login() {
         login(res.data.token, res.data.user)
         navigate('/')
       } catch (err2) {
-        setError(err2.response?.data?.error || 'Erreur de connexion')
+        setError(err2.response?.data?.error || t('login.connectionError'))
       }
     } finally {
       setLoading(false)
@@ -92,7 +94,7 @@ export default function Login() {
     setError('')
     const code = otpCode.join('')
     if (code.length !== 6) {
-      setError('Code OTP incomplet')
+      setError(t('login.otpIncomplete'))
       setOtpLoading(false)
       return
     }
@@ -101,7 +103,7 @@ export default function Login() {
       login(res.data.token, res.data.user)
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.error || 'Code OTP invalide')
+      setError(err.response?.data?.error || t('login.otpInvalid'))
     } finally {
       setOtpLoading(false)
     }
@@ -113,7 +115,7 @@ export default function Login() {
       if (res.data.devCode) setOtpDevCode(res.data.devCode)
       setError('')
     } catch (err) {
-      setError('Erreur lors du renvoi')
+      setError(t('login.otpResendError'))
     }
   }
 
@@ -145,11 +147,11 @@ export default function Login() {
               <Sparkles className="w-7 h-7 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-gray-800">Montexto</h1>
-            <p className="text-sm text-gray-400 mt-1">Plateforme d'envoi SMS multicanal</p>
+            <p className="text-sm text-gray-400 mt-1">{t('login.tagline')}</p>
           </div>
 
           <h2 className="text-base font-medium text-gray-600 mb-6 text-center">
-            {otpStep ? 'Vérification OTP' : 'Connectez-vous à votre compte'}
+            {otpStep ? t('login.otpTitle') : t('login.signInTitle')}
           </h2>
 
           {error && (
@@ -165,12 +167,12 @@ export default function Login() {
                 <div className="w-14 h-14 bg-gradient-to-br from-brand-400 to-gem-purple rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md">
                   <ShieldCheck className="w-7 h-7 text-white" />
                 </div>
-                <p className="text-sm text-gray-500 mb-1">Un code à 6 chiffres a été envoyé</p>
+                <p className="text-sm text-gray-500 mb-1">{t('login.otpSentTo')}</p>
                 <p className="text-xs text-gray-400">à <span className="font-medium text-gray-600">{email}</span></p>
                 {otpDevCode && (
                   <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-mono">
                     <KeyRound className="w-3 h-3" />
-                    Code démo: {otpDevCode}
+                    {t('login.otpDemoCode')}: {otpDevCode}
                   </div>
                 )}
               </div>
@@ -196,15 +198,15 @@ export default function Login() {
                 disabled={otpLoading}
                 className="gem-btn-primary w-full flex items-center justify-center disabled:opacity-60"
               >
-                {otpLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Vérifier <ArrowRight className="w-4 h-4 ml-2" /></>}
+                {otpLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>{t('login.verify')} <ArrowRight className="w-4 h-4 ml-2" /></>}
               </button>
 
               <div className="flex items-center justify-between text-sm">
                 <button type="button" onClick={backToLogin} className="text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                  <ArrowLeft className="w-4 h-4" /> Retour
+                  <ArrowLeft className="w-4 h-4" /> {t('login.back')}
                 </button>
                 <button type="button" onClick={handleOtpResend} className="text-brand-600 hover:text-brand-700 font-medium">
-                  Renvoyer le code
+                  {t('login.resendCode')}
                 </button>
               </div>
             </form>
@@ -212,7 +214,7 @@ export default function Login() {
             <>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Email</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">{t('login.email')}</label>
                   <div className="relative">
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-400" />
                     <input
@@ -226,7 +228,7 @@ export default function Login() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Mot de passe</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">{t('login.password')}</label>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-400" />
                     <input
@@ -248,7 +250,7 @@ export default function Login() {
                 </div>
                 <div className="text-right">
                   <Link to="/forgot-password" className="text-xs text-brand-600 hover:text-brand-700 font-medium">
-                    Mot de passe oublié ?
+                    {t('login.forgotPassword')}
                   </Link>
                 </div>
                 <button
@@ -256,7 +258,7 @@ export default function Login() {
                   disabled={loading}
                   className="gem-btn-primary w-full flex items-center justify-center disabled:opacity-60 mt-2"
                 >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Se connecter <ArrowRight className="w-4 h-4 ml-2" /></>}
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>{t('login.signIn')} <ArrowRight className="w-4 h-4 ml-2" /></>}
                 </button>
               </form>
 
@@ -264,7 +266,7 @@ export default function Login() {
                 <div className="mt-6 pt-6 border-t border-gray-100">
                   <div className="flex items-center gap-2 mb-3">
                     <Zap className="w-3.5 h-3.5 text-brand-500" />
-                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Comptes de démonstration</span>
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('login.demoAccounts')}</span>
                   </div>
                   <div className="space-y-2">
                     {demoUsers.map((u) => (
@@ -295,7 +297,7 @@ export default function Login() {
 
           <div className="mt-6 pt-6 border-t border-gray-100 text-center">
             <p className="text-sm text-gray-500">
-              Pas de compte ? <Link to="/register" className="text-brand-600 hover:text-brand-700 font-medium">Créer un compte</Link>
+              {t('login.noAccount')} <Link to="/register" className="text-brand-600 hover:text-brand-700 font-medium">{t('login.createAccount')}</Link>
             </p>
           </div>
         </div>

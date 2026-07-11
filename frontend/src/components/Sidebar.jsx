@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard,
   Mail,
@@ -19,30 +20,37 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
-const baseMenuItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Tableau de bord', color: 'text-brand-500', bg: 'bg-brand-50' },
-  { to: '/campaigns', icon: Mail, label: 'Campagnes', color: 'text-gem-purple', bg: 'bg-gem-purple/10' },
-  { to: '/catalog', icon: BookOpen, label: 'Catalogue', color: 'text-gem-teal', bg: 'bg-gem-teal/10' },
-  { to: '/groups', icon: Users, label: 'Groupe de contacts', color: 'text-gem-amber', bg: 'bg-gem-amber/10' },
-  { to: '/contacts', icon: UserPlus, label: 'Contacts', color: 'text-gem-pink', bg: 'bg-gem-pink/10' },
-  { to: '/inbox', icon: Inbox, label: 'Boîte de réception', color: 'text-gem-teal', bg: 'bg-gem-teal/10' },
-  { to: '/blacklist', icon: ShieldBan, label: 'Liste noire', color: 'text-red-500', bg: 'bg-red-50' },
-  { to: '/api-keys', icon: Code, label: 'API développeur', color: 'text-brand-600', bg: 'bg-brand-50' },
-  { to: '/statistics', icon: BarChart3, label: 'Statistiques', color: 'text-gem-teal', bg: 'bg-gem-teal/10' },
-]
+function getBaseMenuItems(t) {
+  return [
+    { to: '/', icon: LayoutDashboard, label: t('sidebar.nav.dashboard'), color: 'text-brand-500', bg: 'bg-brand-50' },
+    { to: '/campaigns', icon: Mail, label: t('sidebar.nav.campaigns'), color: 'text-gem-purple', bg: 'bg-gem-purple/10' },
+    { to: '/catalog', icon: BookOpen, label: t('sidebar.nav.catalog'), color: 'text-gem-teal', bg: 'bg-gem-teal/10' },
+    { to: '/groups', icon: Users, label: t('sidebar.nav.groups'), color: 'text-gem-amber', bg: 'bg-gem-amber/10' },
+    { to: '/contacts', icon: UserPlus, label: t('sidebar.nav.contacts'), color: 'text-gem-pink', bg: 'bg-gem-pink/10' },
+    { to: '/inbox', icon: Inbox, label: t('sidebar.nav.inbox'), color: 'text-gem-teal', bg: 'bg-gem-teal/10' },
+    { to: '/blacklist', icon: ShieldBan, label: t('sidebar.nav.blacklist'), color: 'text-red-500', bg: 'bg-red-50' },
+    { to: '/api-keys', icon: Code, label: t('sidebar.nav.apiKeys'), color: 'text-brand-600', bg: 'bg-brand-50' },
+    { to: '/statistics', icon: BarChart3, label: t('sidebar.nav.statistics'), color: 'text-gem-teal', bg: 'bg-gem-teal/10' },
+  ]
+}
 
-const adminMenuItems = [
-  { to: '/organizations', icon: Building2, label: 'Organisations', color: 'text-brand-600', bg: 'bg-brand-50', roles: ['super_admin'] },
-  { to: '/users', icon: Shield, label: 'Utilisateurs', color: 'text-gem-purple', bg: 'bg-gem-purple/10', roles: ['super_admin', 'org_admin'] },
-  { to: '/roles', icon: KeyRound, label: 'Rôles & Permissions', color: 'text-gem-amber', bg: 'bg-gem-amber/10', roles: ['super_admin'] },
-  { to: '/audit', icon: ScrollText, label: "Journal d'audit", color: 'text-gem-pink', bg: 'bg-gem-pink/10', roles: ['super_admin', 'auditor'] },
-  { to: '/gateways', icon: Server, label: 'Passerelles SMS', color: 'text-gem-teal', bg: 'bg-gem-teal/10', roles: ['super_admin'] },
-]
+function getAdminMenuItems(t) {
+  return [
+    { to: '/organizations', icon: Building2, label: t('sidebar.nav.organizations'), color: 'text-brand-600', bg: 'bg-brand-50', roles: ['super_admin'] },
+    { to: '/users', icon: Shield, label: t('sidebar.nav.users'), color: 'text-gem-purple', bg: 'bg-gem-purple/10', roles: ['super_admin', 'org_admin'] },
+    { to: '/roles', icon: KeyRound, label: t('sidebar.nav.roles'), color: 'text-gem-amber', bg: 'bg-gem-amber/10', roles: ['super_admin'] },
+    { to: '/audit', icon: ScrollText, label: t('sidebar.nav.audit'), color: 'text-gem-pink', bg: 'bg-gem-pink/10', roles: ['super_admin', 'auditor'] },
+    { to: '/gateways', icon: Server, label: t('sidebar.nav.gateways'), color: 'text-gem-teal', bg: 'bg-gem-teal/10', roles: ['super_admin'] },
+  ]
+}
 
 export default function Sidebar({ open = false, onClose = () => {} }) {
   const { logout, user, hasRole } = useAuth()
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
+  const baseMenuItems = getBaseMenuItems(t)
+  const adminMenuItems = getAdminMenuItems(t)
   const visibleAdminItems = adminMenuItems.filter((item) => hasRole(...item.roles))
 
   return (
@@ -65,12 +73,12 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
         </div>
         <div>
           <span className="font-bold text-base text-gray-800">Montexto</span>
-          <div className="text-[10px] text-gray-400 font-medium tracking-wide">SMS PLATFORM</div>
+          <div className="text-[10px] text-gray-400 font-medium tracking-wide">{t('sidebar.platform')}</div>
         </div>
       </div>
 
       <nav className="flex-1 mt-4 px-3 space-y-1 overflow-y-auto">
-        <div className="px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Menu</div>
+        <div className="px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{t('sidebar.menu')}</div>
         {baseMenuItems.map((item) => (
           <NavLink
             key={item.to}
@@ -98,7 +106,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
 
         {visibleAdminItems.length > 0 && (
           <>
-            <div className="px-3 py-2 mt-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Administration</div>
+            <div className="px-3 py-2 mt-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{t('sidebar.administration')}</div>
             {visibleAdminItems.map((item) => (
               <NavLink
                 key={item.to}
@@ -132,7 +140,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
             {(user?.firstName?.[0] || 'U').toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-gray-800 truncate">{user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Utilisateur'}</div>
+            <div className="text-sm font-medium text-gray-800 truncate">{user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : t('sidebar.defaultUser')}</div>
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-gray-400 truncate">{user?.email}</span>
             </div>
@@ -148,7 +156,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
           className="w-full flex items-center px-3 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-xl transition-all"
         >
           <LogOut className="w-4 h-4 mr-3" />
-          Déconnexion
+          {t('sidebar.logout')}
         </button>
       </div>
       </aside>
