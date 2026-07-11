@@ -3,7 +3,8 @@ const db = require('../config/db');
 const { authenticateToken } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 const { auditLog } = require('../middleware/audit');
-const { sendSms } = require('../services/twilio');
+const smsGateway = require('../services/smsGateway');
+const { renderTemplate } = require('../services/templateEngine');
 const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
@@ -113,16 +114,23 @@ router.post('/', requirePermission('campaigns.create'), auditLog('campaign.creat
 
   // Send messages
   const recipientRows = await new Promise((resolve, reject) => {
-    db.all('SELECT * FROM campaign_recipients WHERE campaign_id = ?', [campaignId], (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
+    db.all(
+      'SELECT cr.*, c.first_name, c.last_name, c.email FROM campaign_recipients cr LEFT JOIN contacts c ON cr.contact_id = c.id WHERE cr.campaign_id = ?',
+      [campaignId],
+      (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      }
+    );
   });
+
+  const gateway = await smsGateway.getDefaultGateway();
 
   let delivered = 0;
   let failed = 0;
   for (const recipient of recipientRows) {
-    const result = await sendSms({ to: recipient.phone, body: message });
+    const personalizedMessage = renderTemplate(message, recipient);
+    const result = await smsGateway.sendSms({ to: recipient.phone, body: personalizedMessage, gateway });
     if (result.error) {
       failed++;
       db.run('UPDATE campaign_recipients SET status = ?, error_message = ?, sent_at = ? WHERE id = ?', [

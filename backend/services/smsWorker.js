@@ -1,4 +1,6 @@
 const db = require('../config/db');
+const smsGateway = require('./smsGateway');
+const { renderTemplate } = require('./templateEngine');
 
 const BATCH_SIZE = 50;
 const CHECK_INTERVAL = 10000; // 10 seconds
@@ -26,7 +28,7 @@ function processScheduledCampaigns() {
 
         // Get recipients from campaign_recipients with pending status
         db.all(
-          `SELECT cr.id as cr_id, cr.contact_id, cr.phone, c.organization_id
+          `SELECT cr.id as cr_id, cr.contact_id, cr.phone, c.organization_id, c.first_name, c.last_name, c.email
            FROM campaign_recipients cr
            LEFT JOIN contacts c ON c.id = cr.contact_id
            WHERE cr.campaign_id = ? AND cr.status = 'pending'`,
@@ -37,12 +39,13 @@ function processScheduledCampaigns() {
               return;
             }
 
-            // Queue each recipient
+            // Queue each recipient (message personalized per-recipient since it's fixed at insertion time)
             const stmt = db.prepare(
               'INSERT INTO sms_queue (campaign_id, organization_id, contact_id, phone, message, status) VALUES (?, ?, ?, ?, ?, ?)'
             );
             recipients.forEach((r) => {
-              stmt.run(campaign.id, campaign.organization_id, r.contact_id, r.phone, campaign.message, 'queued');
+              const personalizedMessage = renderTemplate(campaign.message, r);
+              stmt.run(campaign.id, campaign.organization_id, r.contact_id, r.phone, personalizedMessage, 'queued');
             });
             stmt.finalize();
 
@@ -69,31 +72,36 @@ function processQueue() {
      ORDER BY sq.queued_at ASC
      LIMIT ?`,
     [BATCH_SIZE],
-    (err, items) => {
+    async (err, items) => {
       if (err || !items.length) return;
 
+      const defaultGateway = await smsGateway.getDefaultGateway();
       items.forEach((item) => {
-        sendSms(item);
+        sendSms(item, defaultGateway);
       });
     }
   );
 }
 
 // ─── Send a single SMS from queue ────────────────────────────────
-function sendSms(item) {
+function sendSms(item, defaultGateway) {
   // Mark as sending
   db.run(
     "UPDATE sms_queue SET status = 'sending', attempts = attempts + 1 WHERE id = ?",
     [item.id],
-    () => {
-      // Simulate SMS sending (replace with real gateway integration)
-      const success = Math.random() > 0.1; // 90% success rate in simulation
+    async () => {
+      const gateway = item.provider
+        ? { id: item.gateway_id, provider: item.provider, config: item.gateway_config }
+        : defaultGateway;
+
+      const result = await smsGateway.sendSms({ to: item.phone, body: item.message, gateway });
+      const success = result.status !== 'failed';
 
       if (success) {
         // Success
         db.run(
           "UPDATE sms_queue SET status = 'sent', sent_at = datetime('now'), twilio_sid = ? WHERE id = ?",
-          ['SM' + Math.random().toString(36).substring(2, 15), item.id]
+          [result.sid, item.id]
         );
 
         // Update campaign_recipients
@@ -119,7 +127,7 @@ function sendSms(item) {
         }
       } else {
         // Failure
-        const errorMsg = 'Gateway timeout';
+        const errorMsg = result.error || 'Gateway error';
         const shouldRetry = item.attempts < item.max_attempts;
         const retryDelay = Math.pow(2, item.attempts) * 60; // exponential backoff in seconds
 

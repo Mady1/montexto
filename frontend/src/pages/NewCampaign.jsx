@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Send, Loader2, Users, Smartphone, MessageSquare, Info, ArrowLeft, Calendar, ShieldAlert } from 'lucide-react'
+import { Send, Loader2, Users, Smartphone, MessageSquare, Info, ArrowLeft, Calendar, ShieldAlert, Copy } from 'lucide-react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
@@ -15,10 +15,14 @@ export default function NewCampaign() {
   const [sending, setSending] = useState(false)
   const [scheduleEnabled, setScheduleEnabled] = useState(false)
   const [scheduleAt, setScheduleAt] = useState('')
+  const [existingCampaigns, setExistingCampaigns] = useState([])
+  const [duplicateId, setDuplicateId] = useState('')
+  const [duplicating, setDuplicating] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
     fetchGroups()
+    fetchExistingCampaigns()
   }, [])
 
   const fetchGroups = async () => {
@@ -28,6 +32,34 @@ export default function NewCampaign() {
       if (res.data.length > 0) setGroupId(res.data[0].id)
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const fetchExistingCampaigns = async () => {
+    try {
+      const res = await api.get('/campaigns')
+      setExistingCampaigns(res.data.data || [])
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleDuplicate = async (id) => {
+    setDuplicateId(id)
+    if (!id) return
+    setDuplicating(true)
+    try {
+      const res = await api.get(`/campaigns/${id}`)
+      const source = res.data
+      setName(`Copie de ${source.name}`)
+      setMessage(source.message || '')
+      setMode('manual')
+      const phones = [...new Set((source.recipients || []).map((r) => r.phone).filter(Boolean))]
+      setManualNumbers(phones.join('\n'))
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erreur lors de la duplication')
+    } finally {
+      setDuplicating(false)
     }
   }
 
@@ -81,6 +113,27 @@ export default function NewCampaign() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <form onSubmit={handleSubmit} className="gem-card p-6 lg:col-span-2">
+          {existingCampaigns.length > 0 && (
+            <div className="mb-5">
+              <label className="block text-xs font-medium text-gray-500 mb-1.5 flex items-center">
+                <Copy className="w-3.5 h-3.5 mr-1.5" /> Dupliquer une campagne existante (optionnel)
+              </label>
+              <select
+                value={duplicateId}
+                onChange={(e) => handleDuplicate(e.target.value)}
+                className="gem-input w-full"
+                disabled={duplicating}
+              >
+                <option value="">Partir d'une campagne vierge</option>
+                {existingCampaigns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} — {new Date(c.created_at).toLocaleDateString('fr-FR')}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="mb-5">
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Nom de la campagne</label>
             <input
@@ -109,6 +162,9 @@ export default function NewCampaign() {
                 {smsSegments} SMS segment{smsSegments > 1 ? 's' : ''}
               </span>
             </div>
+            <p className="text-xs text-gray-400 mt-1.5">
+              Variables disponibles : <code className="font-mono">{'{{firstName}}'}</code>, <code className="font-mono">{'{{lastName}}'}</code>, <code className="font-mono">{'{{phone}}'}</code>, <code className="font-mono">{'{{email}}'}</code> — remplacées automatiquement par les données de chaque contact à l'envoi.
+            </p>
           </div>
 
           <div className="mb-6">
@@ -149,7 +205,7 @@ export default function NewCampaign() {
                 value={manualNumbers}
                 onChange={(e) => setManualNumbers(e.target.value)}
                 rows={4}
-                placeholder="+2250123456789, +33612345678&#10;Séparés par virgule, point-virgule ou retour à la ligne"
+                placeholder="+22376123456, +33612345678&#10;Séparés par virgule, point-virgule ou retour à la ligne"
                 className="gem-input w-full resize-none"
               />
             )}

@@ -106,6 +106,9 @@ export default function Catalog() {
               className="gem-input w-full"
               required
             />
+            <p className="text-xs text-gray-400 mt-1.5">
+              Variables disponibles : <code className="font-mono">{'{{firstName}}'}</code>, <code className="font-mono">{'{{lastName}}'}</code>, <code className="font-mono">{'{{phone}}'}</code>, <code className="font-mono">{'{{email}}'}</code>
+            </p>
           </div>
           <div className="flex items-end">
             <button type="submit" className="gem-btn-primary w-full flex items-center justify-center">
