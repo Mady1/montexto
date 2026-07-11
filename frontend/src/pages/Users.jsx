@@ -15,6 +15,8 @@ export default function Users() {
   const [search, setSearch] = useState('')
   const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '', phone: '', organization_id: '', role_id: '' })
   const [error, setError] = useState('')
+  const [selectedIds, setSelectedIds] = useState([])
+  const [bulkBusy, setBulkBusy] = useState(false)
 
   useEffect(() => {
     fetchUsers()
@@ -105,6 +107,30 @@ export default function Users() {
     }
   }
 
+  const selectableUsers = users.filter((u) => u.id !== currentUser?.id)
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]))
+  }
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => (prev.length === selectableUsers.length ? [] : selectableUsers.map((u) => u.id)))
+  }
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Supprimer ${selectedIds.length} utilisateur(s) ?`)) return
+    setBulkBusy(true)
+    try {
+      await Promise.all(selectedIds.map((id) => api.delete(`/users/${id}`)))
+      setSelectedIds([])
+      fetchUsers()
+    } catch (err) {
+      setError('Erreur lors de la suppression groupée')
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
   const roleColors = {
     super_admin: 'bg-red-50 text-red-600',
     org_admin: 'bg-purple-50 text-purple-600',
@@ -139,6 +165,16 @@ export default function Users() {
         </button>
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-3 gem-card p-3 mb-4">
+          <span className="text-sm font-medium text-gray-600 px-2">{selectedIds.length} sélectionné(s)</span>
+          <button onClick={handleBulkDelete} disabled={bulkBusy} className="flex items-center gap-1.5 text-sm py-1.5 px-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50">
+            {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Supprimer
+          </button>
+          <button onClick={() => setSelectedIds([])} className="text-sm text-gray-400 hover:text-gray-600 ml-auto">Annuler</button>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
@@ -154,6 +190,14 @@ export default function Users() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100">
+                <th className="px-4 py-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectableUsers.length > 0 && selectedIds.length === selectableUsers.length}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded"
+                  />
+                </th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Utilisateur</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Rôle</th>
                 {hasRole('super_admin') && <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Organisation</th>}
@@ -165,6 +209,16 @@ export default function Users() {
             <tbody>
               {users.map((u) => (
                 <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                  <td className="px-4 py-3">
+                    {u.id !== currentUser?.id && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(u.id)}
+                        onChange={() => toggleSelect(u.id)}
+                        className="w-4 h-4 rounded"
+                      />
+                    )}
+                  </td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-gradient-to-br from-brand-400 to-gem-purple rounded-full flex items-center justify-center text-white text-sm font-semibold">

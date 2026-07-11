@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Trash2, Loader2, Upload, Search, Contact, Mail, Phone, FileSpreadsheet, CheckCircle2, AlertCircle, Edit3, Download } from 'lucide-react'
+import { Plus, Trash2, Loader2, Upload, Search, Contact, Mail, Phone, FileSpreadsheet, CheckCircle2, AlertCircle, Edit3, Download, FolderInput } from 'lucide-react'
 import api from '../services/api'
 import Modal from '../components/Modal'
 import Pagination from '../components/Pagination'
@@ -37,9 +37,13 @@ export default function Contacts() {
   const [totalPages, setTotalPages] = useState(1)
   const [editContact, setEditContact] = useState(null)
   const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '', email: '', groupId: '', tags: '' })
+  const [selectedIds, setSelectedIds] = useState([])
+  const [bulkMoveGroupId, setBulkMoveGroupId] = useState('')
+  const [bulkBusy, setBulkBusy] = useState(false)
 
   useEffect(() => {
     fetchData()
+    setSelectedIds([])
   }, [page, groupFilter])
 
   const fetchData = async () => {
@@ -109,6 +113,55 @@ export default function Contacts() {
       fetchData()
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]))
+  }
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => (prev.length === filtered.length ? [] : filtered.map((c) => c.id)))
+  }
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Supprimer ${selectedIds.length} contact(s) ?`)) return
+    setBulkBusy(true)
+    try {
+      await Promise.all(selectedIds.map((id) => api.delete(`/contacts/${id}`)))
+      setSelectedIds([])
+      fetchData()
+    } catch (err) {
+      alert('Erreur lors de la suppression groupée')
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const handleBulkMove = async () => {
+    if (!bulkMoveGroupId) return
+    setBulkBusy(true)
+    try {
+      await Promise.all(
+        selectedIds.map((id) => {
+          const c = contacts.find((x) => x.id === id)
+          return api.put(`/contacts/${id}`, {
+            firstName: c.first_name,
+            lastName: c.last_name,
+            phone: c.phone,
+            email: c.email,
+            tags: c.tags,
+            groupId: bulkMoveGroupId,
+          })
+        })
+      )
+      setSelectedIds([])
+      setBulkMoveGroupId('')
+      fetchData()
+    } catch (err) {
+      alert('Erreur lors du déplacement groupé')
+    } finally {
+      setBulkBusy(false)
     }
   }
 
@@ -354,6 +407,23 @@ export default function Contacts() {
         </div>
       )}
 
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 gem-card p-3 mb-4">
+          <span className="text-sm font-medium text-gray-600 px-2">{selectedIds.length} sélectionné(s)</span>
+          <select value={bulkMoveGroupId} onChange={(e) => setBulkMoveGroupId(e.target.value)} className="gem-input py-1.5 text-sm">
+            <option value="">Déplacer vers un groupe...</option>
+            {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+          <button onClick={handleBulkMove} disabled={!bulkMoveGroupId || bulkBusy} className="gem-btn-secondary flex items-center gap-1.5 text-sm py-1.5 disabled:opacity-50">
+            <FolderInput className="w-3.5 h-3.5" /> Déplacer
+          </button>
+          <button onClick={handleBulkDelete} disabled={bulkBusy} className="flex items-center gap-1.5 text-sm py-1.5 px-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50">
+            {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Supprimer
+          </button>
+          <button onClick={() => setSelectedIds([])} className="text-sm text-gray-400 hover:text-gray-600 ml-auto">Annuler</button>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
@@ -372,6 +442,14 @@ export default function Contacts() {
           <table className="w-full text-sm text-left">
             <thead>
               <tr className="border-b border-gray-100">
+                <th className="px-4 py-4 w-10">
+                  <input
+                    type="checkbox"
+                    checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded"
+                  />
+                </th>
                 <th className="px-6 py-4 font-medium text-gray-400 text-xs uppercase tracking-wider">Nom</th>
                 <th className="px-6 py-4 font-medium text-gray-400 text-xs uppercase tracking-wider">Téléphone</th>
                 <th className="px-6 py-4 font-medium text-gray-400 text-xs uppercase tracking-wider">Email</th>
@@ -383,6 +461,14 @@ export default function Contacts() {
             <tbody>
               {filtered.map((c, i) => (
                 <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors group">
+                  <td className="px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(c.id)}
+                      onChange={() => toggleSelect(c.id)}
+                      className="w-4 h-4 rounded"
+                    />
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-3">
                       <div className={`w-8 h-8 ${avatarColors[i % avatarColors.length]} rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0`}>
