@@ -1,18 +1,19 @@
 const twilio = require('twilio');
 
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+const envAccountSid = process.env.TWILIO_ACCOUNT_SID;
+const envAuthToken = process.env.TWILIO_AUTH_TOKEN;
+const envFromNumber = process.env.TWILIO_PHONE_NUMBER;
 
-let client = null;
-if (accountSid && authToken && accountSid.startsWith('AC')) {
-  client = twilio(accountSid, authToken);
-} else {
-  console.warn('Twilio credentials not configured. SMS sending will be simulated.');
+if (!envAccountSid || !envAuthToken || !envAccountSid.startsWith('AC')) {
+  console.warn('Twilio credentials not configured. SMS sending will be simulated unless a gateway config provides them.');
 }
 
-async function sendSms({ to, body }) {
-  if (!client || !fromNumber) {
+async function sendSms({ to, body, config = {} }) {
+  const accountSid = config.accountSid || envAccountSid;
+  const authToken = config.authToken || envAuthToken;
+  const fromNumber = config.from || envFromNumber;
+
+  if (!accountSid || !authToken || !accountSid.startsWith('AC') || !fromNumber) {
     return {
       sid: `SIMULATED_${Date.now()}`,
       status: 'simulated',
@@ -21,10 +22,13 @@ async function sendSms({ to, body }) {
   }
 
   try {
+    const client = twilio(accountSid, authToken);
+    const baseUrl = process.env.PUBLIC_BASE_URL;
     const message = await client.messages.create({
       body,
       from: fromNumber,
-      to
+      to,
+      ...(baseUrl ? { statusCallback: `${baseUrl.replace(/\/$/, '')}/api/inbound/status` } : {}),
     });
     return {
       sid: message.sid,

@@ -72,6 +72,86 @@ router.post('/inbound', (req, res) => {
   );
 });
 
+// ─── Webhook: receive SMS delivery receipt (DR) notifications ───
+// Public route — called by Orange (GSMA OneAPI deliveryInfoNotification format).
+router.post('/dr', (req, res) => {
+  const deliveryInfo = req.body?.deliveryInfoNotification?.deliveryInfo || req.body?.deliveryInfo || {};
+  const rawAddress = deliveryInfo.address || req.body?.address || '';
+  const deliveryStatus = deliveryInfo.deliveryStatus || req.body?.deliveryStatus || '';
+  const phone = rawAddress.replace(/^tel:/, '');
+
+  if (!phone || !deliveryStatus) {
+    console.warn('[DR Webhook] Unrecognized payload:', JSON.stringify(req.body));
+    return res.status(400).json({ error: 'Missing address or deliveryStatus' });
+  }
+
+  const DELIVERED_STATUSES = ['DeliveredToTerminal', 'MessageForwarded'];
+  const FAILED_STATUSES = ['DeliveryImpossible'];
+
+  let newStatus = null;
+  if (DELIVERED_STATUSES.includes(deliveryStatus)) newStatus = 'delivered';
+  else if (FAILED_STATUSES.includes(deliveryStatus)) newStatus = 'failed';
+
+  // Interim statuses (DeliveredToNetwork, MessageWaiting, DeliveryUncertain, ...): nothing final to record yet.
+  if (!newStatus) return res.json({ status: 'acknowledged' });
+
+  db.run(
+    `UPDATE campaign_recipients SET status = ?, error_message = ?
+     WHERE id = (SELECT id FROM campaign_recipients WHERE phone = ? AND status != 'failed' ORDER BY id DESC LIMIT 1)`,
+    [newStatus, newStatus === 'failed' ? deliveryStatus : null, phone],
+    (err) => {
+      if (err) console.error('[DR Webhook] Error updating campaign_recipients:', err);
+    }
+  );
+
+  db.run(
+    `UPDATE sms_queue SET status = ?, error_message = ?
+     WHERE id = (SELECT id FROM sms_queue WHERE phone = ? AND status = 'sent' ORDER BY id DESC LIMIT 1)`,
+    [newStatus, newStatus === 'failed' ? deliveryStatus : null, phone],
+    (err) => {
+      if (err) console.error('[DR Webhook] Error updating sms_queue:', err);
+    }
+  );
+
+  res.json({ status: 'acknowledged' });
+});
+
+// ─── Webhook: receive SMS delivery status from Twilio ────────────
+// Public route — called by Twilio's statusCallback (form-encoded, matched by MessageSid).
+router.post('/status', express.urlencoded({ extended: false }), (req, res) => {
+  const { MessageSid, MessageStatus } = req.body;
+
+  if (!MessageSid || !MessageStatus) {
+    console.warn('[Status Webhook] Unrecognized payload:', JSON.stringify(req.body));
+    return res.status(400).json({ error: 'Missing MessageSid or MessageStatus' });
+  }
+
+  let newStatus = null;
+  if (MessageStatus === 'delivered') newStatus = 'delivered';
+  else if (MessageStatus === 'failed' || MessageStatus === 'undelivered') newStatus = 'failed';
+
+  // Interim statuses (queued, sending, sent, ...): nothing final to record yet.
+  if (!newStatus) return res.json({ status: 'acknowledged' });
+
+  db.run(
+    `UPDATE campaign_recipients SET status = ?, error_message = ? WHERE twilio_sid = ?`,
+    [newStatus, newStatus === 'failed' ? MessageStatus : null, MessageSid],
+    (err) => {
+      if (err) console.error('[Status Webhook] Error updating campaign_recipients:', err);
+    }
+  );
+
+  db.run(
+    `UPDATE sms_queue SET status = ?, error_message = ? WHERE twilio_sid = ?`,
+    [newStatus, newStatus === 'failed' ? MessageStatus : null, MessageSid],
+    (err) => {
+      if (err) console.error('[Status Webhook] Error updating sms_queue:', err);
+    }
+  );
+
+  res.json({ status: 'acknowledged' });
+});
+
 // ─── List inbound SMS (authenticated) ────────────────────────────
 router.get('/inbox', authenticateToken, (req, res) => {
   const { page = 1, limit = 50, unreadOnly } = req.query;
