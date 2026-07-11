@@ -53,14 +53,14 @@ router.get('/', authenticateToken, (req, res) => {
 });
 
 router.post('/', authenticateToken, (req, res) => {
-  const { firstName, lastName, phone, email, groupId } = req.body;
+  const { firstName, lastName, phone, email, groupId, tags } = req.body;
   if (!phone) return res.status(400).json({ error: 'Phone required' });
   db.run(
-    'INSERT INTO contacts (user_id, organization_id, group_id, first_name, last_name, phone, email) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [req.user.id, req.user.organization_id, groupId || null, firstName || '', lastName || '', phone, email || ''],
+    'INSERT INTO contacts (user_id, organization_id, group_id, first_name, last_name, phone, email, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [req.user.id, req.user.organization_id, groupId || null, firstName || '', lastName || '', phone, email || '', tags || ''],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.status(201).json({ id: this.lastID, firstName, lastName, phone, email, groupId });
+      res.status(201).json({ id: this.lastID, firstName, lastName, phone, email, groupId, tags });
     }
   );
 });
@@ -83,10 +83,10 @@ router.post('/bulk', authenticateToken, (req, res) => {
 });
 
 router.put('/:id', authenticateToken, (req, res) => {
-  const { firstName, lastName, phone, email, groupId } = req.body;
+  const { firstName, lastName, phone, email, groupId, tags } = req.body;
   const filter = orgFilter(req);
-  const sql = 'UPDATE contacts SET first_name = ?, last_name = ?, phone = ?, email = ?, group_id = ? WHERE id = ?' + (filter.organization_id ? ' AND organization_id = ?' : '');
-  const params = [firstName || '', lastName || '', phone, email || '', groupId || null, req.params.id];
+  const sql = 'UPDATE contacts SET first_name = ?, last_name = ?, phone = ?, email = ?, group_id = ?, tags = ? WHERE id = ?' + (filter.organization_id ? ' AND organization_id = ?' : '');
+  const params = [firstName || '', lastName || '', phone, email || '', groupId || null, tags || '', req.params.id];
   if (filter.organization_id) params.push(filter.organization_id);
   db.run(sql, params, function (err) {
     if (err) return res.status(500).json({ error: err.message });

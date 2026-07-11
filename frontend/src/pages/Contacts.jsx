@@ -23,7 +23,8 @@ export default function Contacts() {
   const groupFilter = searchParams.get('groupId') || ''
   const [contacts, setContacts] = useState([])
   const [groups, setGroups] = useState([])
-  const [form, setForm] = useState({ firstName: '', lastName: '', phone: '', email: '', groupId: '' })
+  const [form, setForm] = useState({ firstName: '', lastName: '', phone: '', email: '', groupId: '', tags: '' })
+  const [tagFilter, setTagFilter] = useState('')
   const [bulk, setBulk] = useState('')
   const [showBulk, setShowBulk] = useState(false)
   const [showCsv, setShowCsv] = useState(false)
@@ -35,7 +36,7 @@ export default function Contacts() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [editContact, setEditContact] = useState(null)
-  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '', email: '', groupId: '' })
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', phone: '', email: '', groupId: '', tags: '' })
 
   useEffect(() => {
     fetchData()
@@ -76,7 +77,7 @@ export default function Contacts() {
     e.preventDefault()
     try {
       await api.post('/contacts', form)
-      setForm({ firstName: '', lastName: '', phone: '', email: '', groupId: form.groupId })
+      setForm({ firstName: '', lastName: '', phone: '', email: '', groupId: form.groupId, tags: '' })
       if (page === 1) fetchData()
       else setPage(1)
     } catch (err) {
@@ -119,6 +120,7 @@ export default function Contacts() {
       phone: c.phone || '',
       email: c.email || '',
       groupId: c.group_id || '',
+      tags: c.tags || '',
     })
   }
 
@@ -136,7 +138,7 @@ export default function Contacts() {
   const handleDownloadTemplate = () => {
     const rows = [
       ['phone', 'firstName', 'lastName', 'email'],
-      ['+2250123456789', 'Jean', 'Dupont', 'jean.dupont@mail.com'],
+      ['+22376123456', 'Jean', 'Dupont', 'jean.dupont@mail.com'],
       ['+33612345678', 'Marie', 'Martin', 'marie.martin@mail.com'],
     ]
     const csv = rows.map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -151,9 +153,11 @@ export default function Contacts() {
     window.URL.revokeObjectURL(url)
   }
 
-  const filtered = contacts.filter((c) =>
-    `${c.first_name} ${c.last_name} ${c.phone} ${c.email || ''}`.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = contacts.filter((c) => {
+    const matchesSearch = `${c.first_name} ${c.last_name} ${c.phone} ${c.email || ''}`.toLowerCase().includes(search.toLowerCase())
+    const matchesTag = !tagFilter || (c.tags || '').toLowerCase().split(',').map((t) => t.trim()).includes(tagFilter.toLowerCase().trim())
+    return matchesSearch && matchesTag
+  })
 
   return (
     <div>
@@ -164,22 +168,23 @@ export default function Contacts() {
 
       <div className="gem-card p-6 mb-6">
         <div className="flex space-x-1 mb-4 bg-gray-100 rounded-xl p-1 w-fit">
-          <button onClick={() => { setShowBulk(false); setShowCsv(false) }} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${!showBulk && !showCsv ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-500'}`}>Ajouter un contact</button>
-          <button onClick={() => { setShowBulk(true); setShowCsv(false) }} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${showBulk ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-500'}`}>Import multiple</button>
-          <button onClick={() => { setShowCsv(true); setShowBulk(false) }} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${showCsv ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-500'}`}>Import CSV</button>
+          <button onClick={() => { setShowBulk(false); setShowCsv(false) }} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${!showBulk && !showCsv ? 'bg-[var(--gem-surface)] text-brand-600 shadow-sm' : 'text-gray-500'}`}>Ajouter un contact</button>
+          <button onClick={() => { setShowBulk(true); setShowCsv(false) }} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${showBulk ? 'bg-[var(--gem-surface)] text-brand-600 shadow-sm' : 'text-gray-500'}`}>Import multiple</button>
+          <button onClick={() => { setShowCsv(true); setShowBulk(false) }} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${showCsv ? 'bg-[var(--gem-surface)] text-brand-600 shadow-sm' : 'text-gray-500'}`}>Import CSV</button>
         </div>
 
         {!showBulk && !showCsv ? (
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <input name="firstName" value={form.firstName} onChange={handleChange} placeholder="Prénom" className="gem-input" />
             <input name="lastName" value={form.lastName} onChange={handleChange} placeholder="Nom" className="gem-input" />
-            <input name="phone" value={form.phone} onChange={handleChange} placeholder="+225..." className="gem-input" required />
+            <input name="phone" value={form.phone} onChange={handleChange} placeholder="+223..." className="gem-input" required />
             <select name="groupId" value={form.groupId} onChange={handleChange} className="gem-input">
               {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
             <button type="submit" className="gem-btn-primary flex items-center justify-center">
               <Plus className="w-4 h-4 mr-2" /> Ajouter
             </button>
+            <input name="tags" value={form.tags} onChange={handleChange} placeholder="Tags (séparés par virgule)" className="gem-input md:col-span-5" />
           </form>
         ) : showBulk ? (
           <form onSubmit={handleBulkSubmit}>
@@ -187,7 +192,7 @@ export default function Contacts() {
               value={bulk}
               onChange={(e) => setBulk(e.target.value)}
               rows={6}
-              placeholder="téléphone,prénom,nom,email (un contact par ligne)&#10;Ex: +2250123456789,Jean,Dupont,jean@mail.com"
+              placeholder="téléphone,prénom,nom,email (un contact par ligne)&#10;Ex: +22376123456,Jean,Dupont,jean@mail.com"
               className="gem-input w-full resize-none mb-3 font-mono text-sm"
             />
             <div className="flex items-center space-x-3">
@@ -327,6 +332,17 @@ export default function Contacts() {
         {search && <span className="text-xs text-gray-400">{filtered.length} résultat(s)</span>}
       </div>
 
+      <div className="flex items-center surface-translucent backdrop-blur rounded-full px-4 py-2.5 mb-4 border">
+        <input
+          type="text"
+          placeholder="Filtrer par tag..."
+          value={tagFilter}
+          onChange={(e) => setTagFilter(e.target.value)}
+          className="flex-1 bg-transparent text-sm border-none outline-none placeholder:text-gray-400"
+        />
+        {tagFilter && <span className="text-xs text-gray-400">{filtered.length} résultat(s)</span>}
+      </div>
+
       {groupFilter && (
         <div className="flex items-center gap-2 mb-4 text-sm">
           <span className="gem-badge bg-brand-50 text-brand-600">
@@ -360,6 +376,7 @@ export default function Contacts() {
                 <th className="px-6 py-4 font-medium text-gray-400 text-xs uppercase tracking-wider">Téléphone</th>
                 <th className="px-6 py-4 font-medium text-gray-400 text-xs uppercase tracking-wider">Email</th>
                 <th className="px-6 py-4 font-medium text-gray-400 text-xs uppercase tracking-wider">Groupe</th>
+                <th className="px-6 py-4 font-medium text-gray-400 text-xs uppercase tracking-wider">Tags</th>
                 <th className="px-6 py-4"></th>
               </tr>
             </thead>
@@ -383,6 +400,15 @@ export default function Contacts() {
                   <td className="px-6 py-4">
                     {groups.find((g) => g.id === c.group_id) ? (
                       <span className="gem-badge bg-brand-50 text-brand-600">{groups.find((g) => g.id === c.group_id)?.name}</span>
+                    ) : <span className="text-gray-300">-</span>}
+                  </td>
+                  <td className="px-6 py-4">
+                    {c.tags ? (
+                      <div className="flex flex-wrap gap-1">
+                        {c.tags.split(',').map((t) => t.trim()).filter(Boolean).map((t) => (
+                          <span key={t} className="gem-badge bg-gem-purple/10 text-gem-purple">{t}</span>
+                        ))}
+                      </div>
                     ) : <span className="text-gray-300">-</span>}
                   </td>
                   <td className="px-6 py-4">
@@ -448,6 +474,13 @@ export default function Contacts() {
             <option value="">Aucun groupe</option>
             {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select>
+          <input
+            type="text"
+            value={editForm.tags}
+            onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })}
+            className="gem-input w-full"
+            placeholder="Tags (séparés par virgule)"
+          />
           <button type="submit" className="gem-btn-primary w-full">Enregistrer</button>
         </form>
       </Modal>

@@ -175,11 +175,14 @@ db.serialize(() => {
     last_name TEXT,
     phone TEXT NOT NULL,
     email TEXT,
+    tags TEXT DEFAULT '',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
     FOREIGN KEY (group_id) REFERENCES contact_groups(id) ON DELETE SET NULL
   )`);
+  // Migration for existing databases created before the tags column was added.
+  db.run(`ALTER TABLE contacts ADD COLUMN tags TEXT DEFAULT ''`, () => {});
 
   // ─── Catalog items (org-scoped) ──────────────────────────────────
   db.run(`CREATE TABLE IF NOT EXISTS catalog_items (
