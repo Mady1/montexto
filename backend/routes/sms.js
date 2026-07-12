@@ -142,29 +142,30 @@ router.get('/history', requirePermission('sms.history'), (req, res) => {
   const scopeWhere = isSuperAdmin ? '' : 'AND cr.organization_id = ?';
   const scopeParams = isSuperAdmin ? [] : [req.user.organization_id];
 
-  let sql = `SELECT cr.*, c.first_name, c.last_name
-             FROM campaign_recipients cr
-             LEFT JOIN contacts c ON cr.contact_id = c.id
-             WHERE cr.campaign_id IS NULL ${scopeWhere}`;
-  const params = [...scopeParams];
+  let filterSql = `WHERE cr.campaign_id IS NULL ${scopeWhere}`;
+  const filterParams = [...scopeParams];
 
   if (status) {
-    sql += ' AND cr.status = ?';
-    params.push(status);
+    filterSql += ' AND cr.status = ?';
+    filterParams.push(status);
   }
   if (search) {
-    sql += ' AND (cr.phone LIKE ? OR c.first_name LIKE ? OR c.last_name LIKE ?)';
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    filterSql += ' AND (cr.phone LIKE ? OR c.first_name LIKE ? OR c.last_name LIKE ?)';
+    filterParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
 
-  sql += ' ORDER BY cr.sent_at DESC LIMIT ? OFFSET ?';
-  params.push(Number(take), Number(skip));
+  const sql = `SELECT cr.*, c.first_name, c.last_name
+             FROM campaign_recipients cr
+             LEFT JOIN contacts c ON cr.contact_id = c.id
+             ${filterSql}
+             ORDER BY cr.sent_at DESC LIMIT ? OFFSET ?`;
+  const params = [...filterParams, Number(take), Number(skip)];
 
   db.all(sql, params, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
 
-    let countSql = `SELECT COUNT(*) as total FROM campaign_recipients cr WHERE cr.campaign_id IS NULL ${scopeWhere}`;
-    db.get(countSql, scopeParams, (err2, count) => {
+    const countSql = `SELECT COUNT(*) as total FROM campaign_recipients cr LEFT JOIN contacts c ON cr.contact_id = c.id ${filterSql}`;
+    db.get(countSql, filterParams, (err2, count) => {
       if (err2) return res.status(500).json({ error: err2.message });
       res.json({ data: rows, total: count.total });
     });

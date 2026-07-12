@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard,
   Mail,
+  Send,
   BookOpen,
   Users,
   Code,
@@ -24,6 +25,7 @@ function getBaseMenuItems(t) {
   return [
     { to: '/', icon: LayoutDashboard, label: t('sidebar.nav.dashboard'), color: 'text-brand-500', bg: 'bg-brand-50' },
     { to: '/campaigns', icon: Mail, label: t('sidebar.nav.campaigns'), color: 'text-gem-purple', bg: 'bg-gem-purple/10' },
+    { to: '/sms', icon: Send, label: t('sidebar.nav.sms'), color: 'text-brand-500', bg: 'bg-brand-50' },
     { to: '/catalog', icon: BookOpen, label: t('sidebar.nav.catalog'), color: 'text-gem-teal', bg: 'bg-gem-teal/10' },
     { to: '/groups', icon: Users, label: t('sidebar.nav.groups'), color: 'text-gem-amber', bg: 'bg-gem-amber/10' },
     { to: '/contacts', icon: UserPlus, label: t('sidebar.nav.contacts'), color: 'text-gem-pink', bg: 'bg-gem-pink/10' },

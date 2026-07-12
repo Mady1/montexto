@@ -12,6 +12,7 @@ const ResetPassword = lazy(() => import('./pages/ResetPassword'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Campaigns = lazy(() => import('./pages/Campaigns'))
 const NewCampaign = lazy(() => import('./pages/NewCampaign'))
+const QuickSms = lazy(() => import('./pages/QuickSms'))
 const Catalog = lazy(() => import('./pages/Catalog'))
 const Groups = lazy(() => import('./pages/Groups'))
 const Contacts = lazy(() => import('./pages/Contacts'))
@@ -54,6 +55,7 @@ function App() {
                 <Route index element={<Dashboard />} />
                 <Route path="campaigns" element={<Campaigns />} />
                 <Route path="campaigns/new" element={<NewCampaign />} />
+                <Route path="sms" element={<QuickSms />} />
                 <Route path="catalog" element={<Catalog />} />
                 <Route path="groups" element={<Groups />} />
                 <Route path="contacts" element={<Contacts />} />
