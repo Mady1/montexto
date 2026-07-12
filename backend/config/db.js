@@ -314,6 +314,26 @@ db.serialize(() => {
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
     UNIQUE(organization_id, phone)
   )`);
+
+  // ─── Lightweight migrations for columns added after initial release ──
+  db.all("PRAGMA table_info(api_keys)", [], (err, cols) => {
+    if (!err && !cols.some((c) => c.name === 'last_used_at')) {
+      db.run('ALTER TABLE api_keys ADD COLUMN last_used_at DATETIME');
+    }
+  });
+  db.all("PRAGMA table_info(sms_gateways)", [], (err, cols) => {
+    if (!err && !cols.some((c) => c.name === 'channel')) {
+      db.run("ALTER TABLE sms_gateways ADD COLUMN channel TEXT DEFAULT 'sms'");
+    }
+  });
+  db.all("PRAGMA table_info(sms_queue)", [], (err, cols) => {
+    if (!err && !cols.some((c) => c.name === 'channel')) {
+      db.run("ALTER TABLE sms_queue ADD COLUMN channel TEXT DEFAULT 'sms'");
+    }
+    if (!err && !cols.some((c) => c.name === 'subject')) {
+      db.run('ALTER TABLE sms_queue ADD COLUMN subject TEXT');
+    }
+  });
 });
 
 module.exports = db;
