@@ -190,7 +190,7 @@ export default function Blacklist() {
               type="text"
               value={newPhone}
               onChange={(e) => setNewPhone(e.target.value)}
-              placeholder="+225 07 00 00 00 00"
+              placeholder="+223 76 00 00 00"
               className="gem-input w-full"
               required
             />

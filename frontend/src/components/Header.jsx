@@ -89,7 +89,7 @@ export default function Header({ onMenuClick = () => {} }) {
         {sub && <span className="hidden md:inline text-xs text-gray-400 font-medium">— {sub}</span>}
       </div>
       <div className="flex items-center space-x-2">
-        <div className="hidden md:flex items-center bg-gray-100 rounded-full px-4 py-2 w-56 transition-all focus-within:bg-white focus-within:ring-2 focus-within:ring-brand-200">
+        <div className="hidden md:flex items-center bg-gray-100 rounded-full px-4 py-2 w-56 transition-all focus-within:bg-[var(--gem-surface)] focus-within:ring-2 focus-within:ring-brand-200">
           <Search className="w-4 h-4 text-gray-400 mr-2" />
           <input
             type="text"

@@ -1,4 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/fraunces/600.css';
+@import '@fontsource/fraunces/500-italic.css';
 
 @tailwind base;
 @tailwind components;
@@ -12,15 +17,59 @@
   --gem-text: #16182b;
   --gem-muted: #6b7280;
   --gem-subtle: #9aa1ac;
-  --gem-accent: #5b6cf9;
-  --gem-accent-strong: #3d4de0;
-  --gem-accent2: #9b6cf9;
-  --gem-accent3: #f96c9b;
+  --gem-accent: #0e7c74;
+  --gem-accent-strong: #0b645e;
+  --gem-accent2: #b57922;
+  --gem-accent3: #7b5ca6;
   --gem-shadow: rgba(20, 22, 40, 0.06);
   --gem-shadow-strong: rgba(20, 22, 40, 0.12);
   --gem-overlay: rgba(15, 16, 30, 0.35);
   --gem-scrollbar: #d1d5db;
   --gem-scrollbar-hover: #9ca3af;
+
+  /* Neutral scale backing Tailwind's gray-* utilities (see tailwind.config.js).
+     Light values are Tailwind's stock gray palette, so light mode is pixel-identical. */
+  --gray-50: 249 250 251;
+  --gray-100: 243 244 246;
+  --gray-200: 229 231 235;
+  --gray-300: 209 213 219;
+  --gray-400: 156 163 175;
+  --gray-500: 107 114 128;
+  --gray-600: 75 85 99;
+  --gray-700: 55 65 81;
+  --gray-800: 31 41 55;
+  --gray-900: 17 24 39;
+
+  /* Semantic status colors backing red/green/emerald/amber/blue/orange/purple utilities,
+     so existing status badges/icons stay legible when the theme switches. */
+  --red-50: #fef2f2;
+  --red-100: #fee2e2;
+  --red-200: #fecaca;
+  --red-400: #f87171;
+  --red-500: #ef4444;
+  --red-600: #dc2626;
+  --green-50: #f0fdf4;
+  --green-400: #4ade80;
+  --green-500: #22c55e;
+  --green-600: #16a34a;
+  --emerald-50: #ecfdf5;
+  --emerald-100: #d1fae5;
+  --emerald-500: #10b981;
+  --emerald-600: #059669;
+  --emerald-700: #047857;
+  --amber-50: #fffbeb;
+  --amber-100: #fef3c7;
+  --amber-500: #f59e0b;
+  --amber-600: #d97706;
+  --amber-700: #b45309;
+  --blue-50: #eff6ff;
+  --blue-500: #3b82f6;
+  --blue-600: #2563eb;
+  --orange-50: #fff7ed;
+  --orange-400: #fb923c;
+  --orange-600: #ea580c;
+  --purple-50: #faf5ff;
+  --purple-600: #9333ea;
 }
 
 [data-theme='dark'] {
@@ -31,15 +80,58 @@
   --gem-text: #eef0fb;
   --gem-muted: #a3a8c3;
   --gem-subtle: #6f748f;
-  --gem-accent: #7c8bff;
-  --gem-accent-strong: #97a2ff;
-  --gem-accent2: #b18cff;
-  --gem-accent3: #ff8fb2;
+  --gem-accent: #54c4b4;
+  --gem-accent-strong: #6edccb;
+  --gem-accent2: #e0a65c;
+  --gem-accent3: #a98cd1;
   --gem-shadow: rgba(0, 0, 0, 0.35);
   --gem-shadow-strong: rgba(0, 0, 0, 0.5);
   --gem-overlay: rgba(0, 0, 0, 0.55);
   --gem-scrollbar: #383c5c;
   --gem-scrollbar-hover: #4a4f78;
+
+  /* Inverted so low shades (50-200, previously light backgrounds/borders) become
+     dark elevated surfaces, and high shades (700-900, previously dark text) become
+     light, readable text — same relationships, dark canvas. */
+  --gray-50: 31 33 56;
+  --gray-100: 38 41 66;
+  --gray-200: 43 46 74;
+  --gray-300: 69 74 111;
+  --gray-400: 130 135 168;
+  --gray-500: 163 168 195;
+  --gray-600: 179 183 209;
+  --gray-700: 199 202 224;
+  --gray-800: 238 240 251;
+  --gray-900: 245 246 252;
+
+  --red-50: #3a1b22;
+  --red-100: #47202a;
+  --red-200: #5c2733;
+  --red-400: #fca5a5;
+  --red-500: #f87171;
+  --red-600: #f87171;
+  --green-50: #14302a;
+  --green-400: #86efac;
+  --green-500: #4ade80;
+  --green-600: #4ade80;
+  --emerald-50: #14302a;
+  --emerald-100: #16382f;
+  --emerald-500: #34d399;
+  --emerald-600: #34d399;
+  --emerald-700: #6ee7b7;
+  --amber-50: #3a2e14;
+  --amber-100: #46370f;
+  --amber-500: #fbbf24;
+  --amber-600: #fbbf24;
+  --amber-700: #fcd34d;
+  --blue-50: #182b47;
+  --blue-500: #93c5fd;
+  --blue-600: #60a5fa;
+  --orange-50: #3a2510;
+  --orange-400: #fdba74;
+  --orange-600: #fb923c;
+  --purple-50: #2e1f45;
+  --purple-600: #c084fc;
 }
 
 * {
@@ -49,9 +141,15 @@
 
 body {
   background: var(--gem-bg);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   color: var(--gem-text);
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+h1, h2, h3 {
+  font-family: 'Fraunces', ui-serif, Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 /* Gemini-style scrollbar */
@@ -91,11 +189,11 @@ body {
     background: var(--gem-surface);
     border: 1px solid var(--gem-border);
     border-radius: 16px;
-    box-shadow: 0 1px 3px var(--gem-shadow);
+    box-shadow: 0 1px 2px var(--gem-shadow), 0 1px 3px var(--gem-shadow);
     transition: box-shadow 0.2s ease, transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
   }
   .gem-card:hover {
-    box-shadow: 0 4px 16px var(--gem-shadow-strong);
+    box-shadow: 0 8px 24px var(--gem-shadow-strong), 0 2px 6px var(--gem-shadow);
   }
 
   .surface-card {
@@ -156,6 +254,10 @@ body {
     box-shadow: 0 4px 12px color-mix(in srgb, var(--gem-accent-strong) 50%, transparent);
     transform: translateY(-1px);
   }
+  .gem-btn-primary:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--gem-accent-strong) 40%, transparent);
+  }
 
   .gem-btn-ghost {
     background: transparent;
@@ -169,6 +271,9 @@ body {
   .gem-btn-ghost:hover {
     background: var(--gem-bg);
     color: var(--gem-text);
+  }
+  .gem-btn-ghost:active {
+    transform: scale(0.98);
   }
 
   .gem-btn-secondary {
@@ -184,6 +289,17 @@ body {
   .gem-btn-secondary:hover {
     background: var(--gem-bg);
     border-color: var(--gem-accent);
+    transform: translateY(-1px);
+  }
+  .gem-btn-secondary:active {
+    transform: translateY(0) scale(0.98);
+  }
+
+  .gem-btn-primary:focus-visible,
+  .gem-btn-secondary:focus-visible,
+  .gem-btn-ghost:focus-visible {
+    outline: 2px solid var(--gem-accent);
+    outline-offset: 2px;
   }
 
   .gem-badge {
@@ -202,6 +318,14 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  .eyebrow {
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-style: italic;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: var(--gem-accent-strong);
   }
 }
 

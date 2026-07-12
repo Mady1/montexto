@@ -88,7 +88,7 @@ export default function Register() {
               <label className="block text-xs font-medium text-gray-500 mb-1.5">Téléphone <span className="text-gray-300">(optionnel)</span></label>
               <div className="relative">
                 <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-400" />
-                <input type="tel" name="phone" value={form.phone} onChange={handleChange} className="gem-input w-full pl-11" placeholder="+225..." />
+                <input type="tel" name="phone" value={form.phone} onChange={handleChange} className="gem-input w-full pl-11" placeholder="+223..." />
               </div>
             </div>
             <div>

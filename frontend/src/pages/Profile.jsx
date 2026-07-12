@@ -165,7 +165,7 @@ export default function Profile() {
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
             className="gem-input w-full"
-            placeholder="+225..."
+            placeholder="+223..."
           />
         </div>
         <button type="submit" disabled={savingProfile} className="gem-btn-primary flex items-center gap-2 disabled:opacity-60">
