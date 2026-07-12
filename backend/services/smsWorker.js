@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const smsGateway = require('./smsGateway');
+const mailGateway = require('./mailGateway');
 const { renderTemplate } = require('./templateEngine');
 
 const BATCH_SIZE = 50;
@@ -41,11 +42,11 @@ function processScheduledCampaigns() {
 
             // Queue each recipient (message personalized per-recipient since it's fixed at insertion time)
             const stmt = db.prepare(
-              'INSERT INTO sms_queue (campaign_id, organization_id, contact_id, phone, message, status) VALUES (?, ?, ?, ?, ?, ?)'
+              'INSERT INTO sms_queue (campaign_id, organization_id, contact_id, phone, message, status, channel, subject) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
             );
             recipients.forEach((r) => {
               const personalizedMessage = renderTemplate(campaign.message, r);
-              stmt.run(campaign.id, campaign.organization_id, r.contact_id, r.phone, personalizedMessage, 'queued');
+              stmt.run(campaign.id, campaign.organization_id, r.contact_id, r.phone, personalizedMessage, 'queued', campaign.type, campaign.name);
             });
             stmt.finalize();
 
@@ -75,16 +76,17 @@ function processQueue() {
     async (err, items) => {
       if (err || !items.length) return;
 
-      const defaultGateway = await smsGateway.getDefaultGateway();
+      const defaultSmsGateway = await smsGateway.getDefaultGateway();
+      const defaultMailGateway = await mailGateway.getDefaultMailGateway();
       items.forEach((item) => {
-        sendSms(item, defaultGateway);
+        sendQueuedItem(item, item.channel === 'mail' ? defaultMailGateway : defaultSmsGateway);
       });
     }
   );
 }
 
-// ─── Send a single SMS from queue ────────────────────────────────
-function sendSms(item, defaultGateway) {
+// ─── Send a single queued item (SMS or mail) ─────────────────────
+function sendQueuedItem(item, defaultGateway) {
   // Mark as sending
   db.run(
     "UPDATE sms_queue SET status = 'sending', attempts = attempts + 1 WHERE id = ?",
@@ -94,7 +96,9 @@ function sendSms(item, defaultGateway) {
         ? { id: item.gateway_id, provider: item.provider, config: item.gateway_config }
         : defaultGateway;
 
-      const result = await smsGateway.sendSms({ to: item.phone, body: item.message, gateway });
+      const result = item.channel === 'mail'
+        ? await mailGateway.sendMail({ to: item.phone, subject: item.subject, body: item.message, gateway })
+        : await smsGateway.sendSms({ to: item.phone, body: item.message, gateway });
       const success = result.status !== 'failed';
 
       if (success) {

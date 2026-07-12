@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Send, Loader2, Users, Smartphone, MessageSquare, Info, ArrowLeft, Calendar, ShieldAlert, Copy } from 'lucide-react'
+import { Send, Loader2, Users, Smartphone, MessageSquare, Mail, Info, ArrowLeft, Calendar, ShieldAlert, Copy } from 'lucide-react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
 export default function NewCampaign() {
   const { hasPermission } = useAuth()
+  const [channel, setChannel] = useState('sms')
   const [name, setName] = useState('')
   const [message, setMessage] = useState('')
   const [mode, setMode] = useState('group')
@@ -53,6 +54,7 @@ export default function NewCampaign() {
       const source = res.data
       setName(`Copie de ${source.name}`)
       setMessage(source.message || '')
+      setChannel(source.type === 'mail' ? 'mail' : 'sms')
       setMode('manual')
       const phones = [...new Set((source.recipients || []).map((r) => r.phone).filter(Boolean))]
       setManualNumbers(phones.join('\n'))
@@ -72,7 +74,7 @@ export default function NewCampaign() {
     e.preventDefault()
     setSending(true)
     try {
-      const payload = { name, message, type: 'sms' }
+      const payload = { name, message, type: channel }
       if (mode === 'group') {
         payload.groupId = Number(groupId)
       } else {
@@ -113,6 +115,26 @@ export default function NewCampaign() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <form onSubmit={handleSubmit} className="gem-card p-6 lg:col-span-2">
+          <div className="mb-5">
+            <label className="block text-xs font-medium text-gray-500 mb-2">Canal</label>
+            <div className="flex space-x-2">
+              <button
+                type="button"
+                onClick={() => setChannel('sms')}
+                className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${channel === 'sms' ? 'bg-brand-50 text-brand-700 ring-2 ring-brand-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                <Smartphone className="w-4 h-4 mr-2" /> SMS
+              </button>
+              <button
+                type="button"
+                onClick={() => setChannel('mail')}
+                className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${channel === 'mail' ? 'bg-brand-50 text-brand-700 ring-2 ring-brand-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                <Mail className="w-4 h-4 mr-2" /> Email
+              </button>
+            </div>
+          </div>
+
           {existingCampaigns.length > 0 && (
             <div className="mb-5">
               <label className="block text-xs font-medium text-gray-500 mb-1.5 flex items-center">
@@ -158,9 +180,11 @@ export default function NewCampaign() {
             />
             <div className="flex items-center justify-between mt-2">
               <span className="text-xs text-gray-500">{message.length} / 1600 caractères</span>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${smsSegments > 1 ? 'bg-orange-50 text-orange-600' : 'bg-gray-100 text-gray-500'}`}>
-                {smsSegments} SMS segment{smsSegments > 1 ? 's' : ''}
-              </span>
+              {channel === 'sms' && (
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${smsSegments > 1 ? 'bg-orange-50 text-orange-600' : 'bg-gray-100 text-gray-500'}`}>
+                  {smsSegments} SMS segment{smsSegments > 1 ? 's' : ''}
+                </span>
+              )}
             </div>
             <p className="text-xs text-gray-400 mt-1.5">
               Variables disponibles : <code className="font-mono">{'{{firstName}}'}</code>, <code className="font-mono">{'{{lastName}}'}</code>, <code className="font-mono">{'{{phone}}'}</code>, <code className="font-mono">{'{{email}}'}</code> — remplacées automatiquement par les données de chaque contact à l'envoi.
@@ -182,7 +206,8 @@ export default function NewCampaign() {
                 onClick={() => setMode('manual')}
                 className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${mode === 'manual' ? 'bg-brand-50 text-brand-700 ring-2 ring-brand-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
-                <Smartphone className="w-4 h-4 mr-2" /> Numéros manuels
+                {channel === 'mail' ? <Mail className="w-4 h-4 mr-2" /> : <Smartphone className="w-4 h-4 mr-2" />}
+                {channel === 'mail' ? 'Emails manuels' : 'Numéros manuels'}
               </button>
             </div>
 
@@ -205,7 +230,9 @@ export default function NewCampaign() {
                 value={manualNumbers}
                 onChange={(e) => setManualNumbers(e.target.value)}
                 rows={4}
-                placeholder="+22376123456, +33612345678&#10;Séparés par virgule, point-virgule ou retour à la ligne"
+                placeholder={channel === 'mail'
+                  ? 'contact@exemple.com, autre@exemple.com&#10;Séparés par virgule, point-virgule ou retour à la ligne'
+                  : '+22376123456, +33612345678&#10;Séparés par virgule, point-virgule ou retour à la ligne'}
                 className="gem-input w-full resize-none"
               />
             )}
@@ -262,14 +289,27 @@ export default function NewCampaign() {
         <div className="space-y-4">
           <div className="gem-card p-6">
             <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center">
-              <MessageSquare className="w-4 h-4 mr-2 text-brand-500" /> Aperçu SMS
+              {channel === 'mail' ? <Mail className="w-4 h-4 mr-2 text-brand-500" /> : <MessageSquare className="w-4 h-4 mr-2 text-brand-500" />}
+              Aperçu {channel === 'mail' ? 'email' : 'SMS'}
             </h3>
-            <div className="bg-gray-900 rounded-2xl p-4">
-              <div className="bg-gradient-to-br from-brand-500 to-brand-600 text-white rounded-2xl rounded-tl-sm px-4 py-3 text-sm max-w-[90%]">
-                {message || 'Votre message apparaîtra ici...'}
+            {channel === 'mail' ? (
+              <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200">
+                  <div className="text-[10px] text-gray-400 uppercase tracking-wide">Objet</div>
+                  <div className="text-sm font-medium text-gray-700 truncate">{name || 'Votre campagne apparaîtra ici...'}</div>
+                </div>
+                <div className="p-4 text-sm text-gray-600 whitespace-pre-wrap min-h-[80px]">
+                  {message || 'Votre message apparaîtra ici...'}
+                </div>
               </div>
-              <div className="text-[10px] text-gray-500 mt-1 text-right">Aperçu</div>
-            </div>
+            ) : (
+              <div className="bg-gray-900 rounded-2xl p-4">
+                <div className="bg-gradient-to-br from-brand-500 to-brand-600 text-white rounded-2xl rounded-tl-sm px-4 py-3 text-sm max-w-[90%]">
+                  {message || 'Votre message apparaîtra ici...'}
+                </div>
+                <div className="text-[10px] text-gray-500 mt-1 text-right">Aperçu</div>
+              </div>
+            )}
           </div>
 
           <div className="gem-card p-6">
@@ -281,18 +321,22 @@ export default function NewCampaign() {
                 <span className="text-gray-500">Destinataires</span>
                 <span className="font-semibold text-gray-800">{recipientCount}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Segments par SMS</span>
-                <span className="font-semibold text-gray-800">{smsSegments}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Total segments</span>
-                <span className="font-semibold text-brand-600">{recipientCount * smsSegments}</span>
-              </div>
-              <div className="pt-3 border-t border-gray-100 flex justify-between">
-                <span className="text-gray-500">Coût estimé</span>
-                <span className="font-semibold text-gray-800">{(recipientCount * smsSegments * 0.05).toFixed(2)} €</span>
-              </div>
+              {channel === 'sms' && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Segments par SMS</span>
+                    <span className="font-semibold text-gray-800">{smsSegments}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Total segments</span>
+                    <span className="font-semibold text-brand-600">{recipientCount * smsSegments}</span>
+                  </div>
+                  <div className="pt-3 border-t border-gray-100 flex justify-between">
+                    <span className="text-gray-500">Coût estimé</span>
+                    <span className="font-semibold text-gray-800">{(recipientCount * smsSegments * 0.05).toFixed(2)} €</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

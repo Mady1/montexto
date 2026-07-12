@@ -4,6 +4,7 @@ const { authenticateToken } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 const { auditLog } = require('../middleware/audit');
 const smsGateway = require('../services/smsGateway');
+const mailGateway = require('../services/mailGateway');
 const { renderTemplate } = require('../services/templateEngine');
 const { v4: uuidv4 } = require('uuid');
 
@@ -63,18 +64,21 @@ router.post('/', requirePermission('campaigns.create'), auditLog('campaign.creat
 async function createCampaign(req, res) {
   const { name, message, type = 'sms', groupId, recipients: manualRecipients = [], scheduleAt } = req.body;
 
+  const isMail = type === 'mail';
+  const recipientCol = isMail ? 'email' : 'phone';
+
   let phones = [];
   if (groupId) {
     const rows = await new Promise((resolve, reject) => {
       const isSuperAdmin = req.user.role_name === 'super_admin';
     const contactWhere = isSuperAdmin ? 'group_id = ?' : 'group_id = ? AND organization_id = ?';
     const contactParams = isSuperAdmin ? [groupId] : [groupId, req.user.organization_id];
-    db.all(`SELECT phone, id FROM contacts WHERE ${contactWhere}`, contactParams, (err, rows) => {
+    db.all(`SELECT ${recipientCol} as recipient, id FROM contacts WHERE ${contactWhere} AND ${recipientCol} IS NOT NULL AND ${recipientCol} != ''`, contactParams, (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
       });
     });
-    phones = rows.map((r) => ({ phone: r.phone, contactId: r.id }));
+    phones = rows.map((r) => ({ phone: r.recipient, contactId: r.id }));
   } else if (manualRecipients.length) {
     phones = manualRecipients.map((p) => ({ phone: p, contactId: null }));
   }
@@ -82,9 +86,9 @@ async function createCampaign(req, res) {
   const total = phones.length;
   const status = scheduleAt ? 'scheduled' : 'sent';
 
-  // Filter out blacklisted numbers
+  // Filter out blacklisted numbers (SMS only — the blacklist is phone-based and doesn't apply to email)
   let blacklistedCount = 0;
-  if (req.user.organization_id && phones.length > 0) {
+  if (!isMail && req.user.organization_id && phones.length > 0) {
     const blRows = await new Promise((resolve) => {
       db.all('SELECT phone FROM blacklist WHERE organization_id = ?', [req.user.organization_id], (e, r) => resolve(r || []));
     });
@@ -109,11 +113,18 @@ async function createCampaign(req, res) {
     );
   });
 
-  const stmt = db.prepare('INSERT INTO campaign_recipients (campaign_id, organization_id, contact_id, phone) VALUES (?, ?, ?, ?)');
-  for (const { phone, contactId } of phones) {
-    stmt.run(campaignId, req.user.organization_id, contactId, phone);
-  }
-  stmt.finalize();
+  // db.serialize + awaiting finalize's callback ensures every insert has actually
+  // landed before the SELECT below runs — without it, sqlite3's default unserialized
+  // mode can let the SELECT race ahead of later inserts, silently dropping recipients.
+  await new Promise((resolve, reject) => {
+    db.serialize(() => {
+      const stmt = db.prepare('INSERT INTO campaign_recipients (campaign_id, organization_id, contact_id, phone) VALUES (?, ?, ?, ?)');
+      for (const { phone, contactId } of phones) {
+        stmt.run(campaignId, req.user.organization_id, contactId, phone);
+      }
+      stmt.finalize((err) => (err ? reject(err) : resolve()));
+    });
+  });
 
   // If scheduled, don't send now
   if (scheduleAt) {
@@ -132,13 +143,15 @@ async function createCampaign(req, res) {
     );
   });
 
-  const gateway = await smsGateway.getDefaultGateway();
+  const gateway = isMail ? await mailGateway.getDefaultMailGateway() : await smsGateway.getDefaultGateway();
 
   let delivered = 0;
   let failed = 0;
   for (const recipient of recipientRows) {
     const personalizedMessage = renderTemplate(message, recipient);
-    const result = await smsGateway.sendSms({ to: recipient.phone, body: personalizedMessage, gateway });
+    const result = isMail
+      ? await mailGateway.sendMail({ to: recipient.phone, subject: name, body: personalizedMessage, gateway })
+      : await smsGateway.sendSms({ to: recipient.phone, body: personalizedMessage, gateway });
     if (result.error) {
       failed++;
       db.run('UPDATE campaign_recipients SET status = ?, error_message = ?, sent_at = ? WHERE id = ?', [

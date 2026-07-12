@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Server, Trash2, Star, Loader2, X, Check, Radio, Zap, CheckCircle2, XCircle, Eye, EyeOff } from 'lucide-react'
+import { Plus, Server, Trash2, Star, Loader2, X, Check, Radio, Zap, CheckCircle2, XCircle, Eye, EyeOff, Mail as MailIcon } from 'lucide-react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import Modal from '../components/Modal'
@@ -10,8 +10,12 @@ const providerGradients = {
   messagebird: 'from-blue-500 to-indigo-600',
   orange: 'from-orange-500 to-amber-600',
   mt: 'from-emerald-500 to-teal-600',
+  smtp: 'from-brand-500 to-brand-700',
   custom: 'from-gray-500 to-gray-700',
 }
+
+// SMTP is the only mail-channel provider; everything else is SMS.
+const channelForProvider = (provider) => (provider === 'smtp' ? 'mail' : 'sms')
 
 export default function Gateways() {
   const { hasRole } = useAuth()
@@ -19,18 +23,23 @@ export default function Gateways() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ name: '', provider: 'twilio', config: {}, isDefault: false, status: 'active' })
+  const [form, setForm] = useState({ name: '', provider: 'twilio', config: {}, isDefault: false, status: 'active', channel: 'sms' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showSecret, setShowSecret] = useState(false)
   const [testPhone, setTestPhone] = useState('')
+  const [testEmail, setTestEmail] = useState('')
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
 
-  const STRUCTURED_PROVIDERS = ['orange', 'twilio']
+  const STRUCTURED_PROVIDERS = ['orange', 'twilio', 'smtp']
 
   const updateConfig = (key, value) => {
     setForm((prev) => ({ ...prev, config: { ...prev.config, [key]: value } }))
+  }
+
+  const changeProvider = (provider) => {
+    setForm((prev) => ({ ...prev, provider, channel: channelForProvider(provider), config: {} }))
   }
 
   const handleTest = async () => {
@@ -40,7 +49,8 @@ export default function Gateways() {
       const res = await api.post('/gateways/test', {
         provider: form.provider,
         config: form.config,
-        testPhone: testPhone.trim() || undefined,
+        testPhone: form.provider !== 'smtp' ? (testPhone.trim() || undefined) : undefined,
+        testEmail: form.provider === 'smtp' ? (testEmail.trim() || undefined) : undefined,
       })
       setTestResult(res.data)
     } catch (err) {
@@ -67,9 +77,10 @@ export default function Gateways() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', provider: 'twilio', config: {}, isDefault: false, status: 'active' })
+    setForm({ name: '', provider: 'twilio', config: {}, isDefault: false, status: 'active', channel: 'sms' })
     setError('')
     setTestPhone('')
+    setTestEmail('')
     setTestResult(null)
     setShowModal(true)
   }
@@ -92,9 +103,11 @@ export default function Gateways() {
       config: parseGatewayConfig(g.config),
       isDefault: !!g.is_default,
       status: g.status,
+      channel: g.channel || channelForProvider(g.provider),
     })
     setError('')
     setTestPhone('')
+    setTestEmail('')
     setTestResult(null)
     setShowModal(true)
   }
@@ -149,8 +162,8 @@ export default function Gateways() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-semibold text-gray-800">Passerelles SMS</h2>
-          <p className="text-sm text-gray-500 mt-1">Configurez les fournisseurs d'envoi SMS</p>
+          <h2 className="text-xl font-semibold text-gray-800">Passerelles</h2>
+          <p className="text-sm text-gray-500 mt-1">Configurez les fournisseurs d'envoi SMS et email</p>
         </div>
         <button onClick={openCreate} className="gem-btn-primary flex items-center">
           <Plus className="w-4 h-4 mr-2" /> Ajouter
@@ -178,7 +191,7 @@ export default function Gateways() {
             <div key={g.id} className="gem-card p-5">
               <div className="flex items-start justify-between mb-3">
                 <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${providerGradients[g.provider] || providerGradients.custom} flex items-center justify-center shadow-sm`}>
-                  <Server className="w-5 h-5 text-white" />
+                  {(g.channel || channelForProvider(g.provider)) === 'mail' ? <MailIcon className="w-5 h-5 text-white" /> : <Server className="w-5 h-5 text-white" />}
                 </div>
                 <div className="flex items-center gap-1">
                   {g.is_default ? (
@@ -239,15 +252,20 @@ export default function Gateways() {
               <label className="block text-xs font-medium text-gray-500 mb-1.5">Fournisseur</label>
               <select
                 value={form.provider}
-                onChange={(e) => setForm({ ...form, provider: e.target.value })}
+                onChange={(e) => changeProvider(e.target.value)}
                 className="gem-input w-full"
               >
-                <option value="twilio">Twilio</option>
-                <option value="vonage">Vonage</option>
-                <option value="messagebird">MessageBird</option>
-                <option value="orange">Orange SMS</option>
-                <option value="mt">MT Mobile</option>
-                <option value="custom">Personnalisé</option>
+                <optgroup label="SMS">
+                  <option value="twilio">Twilio</option>
+                  <option value="vonage">Vonage</option>
+                  <option value="messagebird">MessageBird</option>
+                  <option value="orange">Orange SMS</option>
+                  <option value="mt">MT Mobile</option>
+                  <option value="custom">Personnalisé (SMS)</option>
+                </optgroup>
+                <optgroup label="Email">
+                  <option value="smtp">SMTP</option>
+                </optgroup>
               </select>
             </div>
             {form.provider === 'orange' ? (
@@ -335,6 +353,65 @@ export default function Gateways() {
                   />
                 </div>
               </div>
+            ) : form.provider === 'smtp' ? (
+              <div className="space-y-3 p-3 rounded-xl bg-gray-50">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Hôte SMTP</label>
+                    <input
+                      type="text"
+                      value={form.config.host || ''}
+                      onChange={(e) => updateConfig('host', e.target.value)}
+                      className="gem-input w-full font-mono text-xs"
+                      placeholder="smtp.exemple.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Port</label>
+                    <input
+                      type="text"
+                      value={form.config.port || ''}
+                      onChange={(e) => updateConfig('port', e.target.value)}
+                      className="gem-input w-full font-mono text-xs"
+                      placeholder="587"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Utilisateur</label>
+                  <input
+                    type="text"
+                    value={form.config.user || ''}
+                    onChange={(e) => updateConfig('user', e.target.value)}
+                    className="gem-input w-full font-mono text-xs"
+                    placeholder="contact@votredomaine.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Mot de passe</label>
+                  <div className="relative">
+                    <input
+                      type={showSecret ? 'text' : 'password'}
+                      value={form.config.pass || ''}
+                      onChange={(e) => updateConfig('pass', e.target.value)}
+                      className="gem-input w-full font-mono text-xs pr-10"
+                    />
+                    <button type="button" onClick={() => setShowSecret((s) => !s)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Adresse expéditeur <span className="text-gray-400">(optionnel, sinon "Utilisateur")</span></label>
+                  <input
+                    type="text"
+                    value={form.config.from || ''}
+                    onChange={(e) => updateConfig('from', e.target.value)}
+                    className="gem-input w-full font-mono text-xs"
+                    placeholder="Montexto <contact@votredomaine.com>"
+                  />
+                </div>
+              </div>
             ) : (
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Configuration (JSON)</label>
@@ -354,13 +431,23 @@ export default function Gateways() {
               <div className="p-3 rounded-xl border border-dashed border-gray-200 space-y-2">
                 <label className="block text-xs font-medium text-gray-500">Tester la connexion</label>
                 <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={testPhone}
-                    onChange={(e) => setTestPhone(e.target.value)}
-                    className="gem-input flex-1 text-xs"
-                    placeholder="Numéro de test (optionnel) — sinon vérifie juste l'authentification"
-                  />
+                  {form.provider === 'smtp' ? (
+                    <input
+                      type="email"
+                      value={testEmail}
+                      onChange={(e) => setTestEmail(e.target.value)}
+                      className="gem-input flex-1 text-xs"
+                      placeholder="Email de test (optionnel) — sinon vérifie juste la connexion SMTP"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={testPhone}
+                      onChange={(e) => setTestPhone(e.target.value)}
+                      className="gem-input flex-1 text-xs"
+                      placeholder="Numéro de test (optionnel) — sinon vérifie juste l'authentification"
+                    />
+                  )}
                   <button
                     type="button"
                     onClick={handleTest}
