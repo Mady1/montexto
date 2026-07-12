@@ -177,8 +177,8 @@ async function seed() {
   let org = await getOne("SELECT id FROM organizations WHERE name = 'Montexto Demo'");
   if (!org) {
     const orgId = await run(
-      "INSERT INTO organizations (name, type, email, sms_balance, status) VALUES (?, ?, ?, ?, ?)",
-      ['Montexto Demo', 'entreprise', 'contact@montexto.com', 10000, 'active']
+      "INSERT INTO organizations (name, type, email, phone, address, sms_balance, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ['Montexto Demo', 'entreprise', 'contact@montexto.com', '+223 20 22 00 00', 'Bamako, Mali', 10000, 'active']
     );
     org = { id: orgId };
     console.log(`   Created organization: Montexto Demo (id=${org.id})`);
@@ -195,7 +195,7 @@ async function seed() {
     const hashed = bcrypt.hashSync(adminPassword, 10);
     const userId = await run(
       'INSERT INTO users (email, password, first_name, last_name, phone, organization_id, role_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [adminEmail, hashed, 'Super', 'Admin', '+2250000000000', org.id, roleMap['super_admin'], 'active']
+      [adminEmail, hashed, 'Super', 'Admin', '+22300000000', org.id, roleMap['super_admin'], 'active']
     );
     console.log(`   Created super admin: ${adminEmail} / ${adminPassword}`);
     
@@ -217,7 +217,7 @@ async function seed() {
     const hashed = bcrypt.hashSync('demo123', 10);
     const userId = await run(
       'INSERT INTO users (email, password, first_name, last_name, phone, organization_id, role_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [demoEmail, hashed, 'Demo', 'User', '+2250100000000', org.id, roleMap['org_admin'], 'active']
+      [demoEmail, hashed, 'Demo', 'User', '+22370000000', org.id, roleMap['org_admin'], 'active']
     );
     console.log(`   Created demo user: ${demoEmail} / demo123`);
   } else {

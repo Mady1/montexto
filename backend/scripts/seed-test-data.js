@@ -71,7 +71,7 @@ async function seedTestData() {
   
   // ─── 1. Organisations supplementaires ──────────────────────────
   console.log('1. Organisations...');
-  const orgNames = ['Banco Atlantique', 'Orange CI', 'Groupe SIFCA'];
+  const orgNames = ['BDM-SA', 'Orange Mali', 'CMDT'];
   const orgIds = { 'Montexto Demo': orgs[0].id };
   for (const name of orgNames) {
     const existing = await getOne('SELECT id FROM organizations WHERE name = ?', [name]);
@@ -80,10 +80,10 @@ async function seedTestData() {
     } else {
       const id = await run(
         'INSERT INTO organizations (name, type, email, phone, address, sms_balance, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [name, name.includes('Banco') ? 'banque' : name.includes('Orange') ? 'telecom' : 'entreprise',
-         `contact@${name.toLowerCase().replace(/\s/g, '')}.ci`,
-         '+225 27 22 00 00 00',
-         'Abidjan, Cote d\'Ivoire',
+        [name, name.includes('BDM') ? 'banque' : name.includes('Orange') ? 'telecom' : 'entreprise',
+         `contact@${name.toLowerCase().replace(/[\s-]/g, '')}.ml`,
+         '+223 20 22 00 00',
+         'Bamako, Mali',
          Math.floor(Math.random() * 5000) + 1000,
          'active']
       );
@@ -95,13 +95,13 @@ async function seedTestData() {
   // ─── 2. Utilisateurs supplementaires ───────────────────────────
   console.log('2. Utilisateurs...');
   const testUsers = [
-    { email: 'resp.com@montexto.com', password: 'resp123', firstName: 'Aminata', lastName: 'Koné', phone: '+2250700000001', org: 'Montexto Demo', role: 'resp_com' },
-    { email: 'operator@montexto.com', password: 'op123', firstName: 'Yao', lastName: 'Kouassi', phone: '+2250700000002', org: 'Montexto Demo', role: 'operator' },
-    { email: 'auditor@montexto.com', password: 'audit123', firstName: 'Fatou', lastName: 'Diabaté', phone: '+2250700000003', org: 'Montexto Demo', role: 'auditor' },
-    { email: 'admin.banco@montexto.com', password: 'banco123', firstName: 'Ibrahim', lastName: 'Touré', phone: '+2250700000004', org: 'Banco Atlantique', role: 'org_admin' },
-    { email: 'com.banco@montexto.com', password: 'bcom123', firstName: 'Awa', lastName: 'Bamba', phone: '+2250700000005', org: 'Banco Atlantique', role: 'resp_com' },
-    { email: 'admin.orange@montexto.com', password: 'orange123', firstName: 'Koffi', lastName: 'N\'Guessan', phone: '+2250700000006', org: 'Orange CI', role: 'org_admin' },
-    { email: 'op.sifca@montexto.com', password: 'sifca123', firstName: 'Mariam', lastName: 'Cissé', phone: '+2250700000007', org: 'Groupe SIFCA', role: 'operator' },
+    { email: 'resp.com@montexto.com', password: 'resp123', firstName: 'Aminata', lastName: 'Koné', phone: '+22376000001', org: 'Montexto Demo', role: 'resp_com' },
+    { email: 'operator@montexto.com', password: 'op123', firstName: 'Souleymane', lastName: 'Diarra', phone: '+22376000002', org: 'Montexto Demo', role: 'operator' },
+    { email: 'auditor@montexto.com', password: 'audit123', firstName: 'Fatoumata', lastName: 'Diabaté', phone: '+22376000003', org: 'Montexto Demo', role: 'auditor' },
+    { email: 'admin.bdm@montexto.com', password: 'bdm123', firstName: 'Ibrahim', lastName: 'Touré', phone: '+22376000004', org: 'BDM-SA', role: 'org_admin' },
+    { email: 'com.bdm@montexto.com', password: 'bdmcom123', firstName: 'Awa', lastName: 'Sidibé', phone: '+22376000005', org: 'BDM-SA', role: 'resp_com' },
+    { email: 'admin.orange@montexto.com', password: 'orange123', firstName: 'Sékou', lastName: 'Diallo', phone: '+22376000006', org: 'Orange Mali', role: 'org_admin' },
+    { email: 'op.cmdt@montexto.com', password: 'cmdt123', firstName: 'Mariam', lastName: 'Cissé', phone: '+22376000007', org: 'CMDT', role: 'operator' },
   ];
 
   const userIds = {};
@@ -131,10 +131,10 @@ async function seedTestData() {
     { name: 'Clients VIP', desc: 'Clients haut de gamme', org: 'Montexto Demo', user: 'demo@montexto.com' },
     { name: 'Prospects', desc: 'Prospects a convertir', org: 'Montexto Demo', user: 'demo@montexto.com' },
     { name: 'Fournisseurs', desc: 'Liste des fournisseurs', org: 'Montexto Demo', user: 'operator@montexto.com' },
-    { name: 'Clients Banque', desc: 'Clients particulier', org: 'Banco Atlantique', user: 'admin.banco@montexto.com' },
-    { name: 'Clients Entreprise', desc: 'Clients corporate', org: 'Banco Atlantique', user: 'com.banco@montexto.com' },
-    { name: 'Abonnes Orange', desc: 'Abonnes mobile', org: 'Orange CI', user: 'admin.orange@montexto.com' },
-    { name: 'Personnel SIFCA', desc: 'Employes internes', org: 'Groupe SIFCA', user: 'op.sifca@montexto.com' },
+    { name: 'Clients Banque', desc: 'Clients particulier', org: 'BDM-SA', user: 'admin.bdm@montexto.com' },
+    { name: 'Clients Entreprise', desc: 'Clients corporate', org: 'BDM-SA', user: 'com.bdm@montexto.com' },
+    { name: 'Abonnes Orange', desc: 'Abonnes mobile', org: 'Orange Mali', user: 'admin.orange@montexto.com' },
+    { name: 'Personnel CMDT', desc: 'Employes internes', org: 'CMDT', user: 'op.cmdt@montexto.com' },
   ];
   const groupIds = {};
   for (const g of groups) {
@@ -153,11 +153,11 @@ async function seedTestData() {
 
   // ─── 4. Contacts ───────────────────────────────────────────────
   console.log('4. Contacts...');
-  const firstNames = ['Jean', 'Adjoa', 'Sekou', 'Grace', 'Mamadou', 'Aya', 'Boubacar', 'Eric', 'Salimata', 'Patrick',
-    'Aminata', 'Drissa', 'Christiane', 'Moussa', 'Nadège', 'Lassina', 'Fanta', 'Hervé', 'Kadiatou', 'Olivier',
-    'Rokia', 'Issa', 'Brigitte', 'Adama', 'Yves', 'Koffi', 'Awa', 'Moustapha', 'Solange', 'Bakary'];
-  const lastNames = ['Koné', 'Traoré', 'Bamba', 'Yapi', 'Diallo', 'Coulibaly', 'Touré', 'N\'Guessan', 'Fofana', 'Brou',
-    'Sangaré', 'Cissé', 'Diabaté', 'Kouassi', 'Barro', 'Soro', 'Kouamé', 'Zadi', 'Doumbia', 'Assoi'];
+  const firstNames = ['Mamadou', 'Fatoumata', 'Oumar', 'Aminata', 'Boubacar', 'Awa', 'Souleymane', 'Djénéba',
+    'Sékou', 'Aïssata', 'Bakary', 'Kadiatou', 'Adama', 'Rokia', 'Yacouba', 'Assitan', 'Lassana', 'Nana',
+    'Moussa', 'Bintou', 'Drissa', 'Sitan', 'Alou', 'Korotoumou', 'Cheick', 'Hawa', 'Mahamadou', 'Salimata', 'Issa', 'Fanta'];
+  const lastNames = ['Traoré', 'Diarra', 'Keïta', 'Coulibaly', 'Diallo', 'Touré', 'Cissé', 'Konaté', 'Sissoko',
+    'Sangaré', 'Camara', 'Sidibé', 'Maïga', 'Haïdara', 'Doumbia', 'Kouyaté', 'Dembélé', 'Diakité', 'Ba', 'Sow'];
 
   let contactCount = 0;
   for (const [orgName, orgId] of Object.entries(orgIds)) {
@@ -166,8 +166,9 @@ async function seedTestData() {
     for (let i = 0; i < numContacts; i++) {
       const fn = firstNames[Math.floor(Math.random() * firstNames.length)];
       const ln = lastNames[Math.floor(Math.random() * lastNames.length)];
-      const phone = `+225 07 0${Math.floor(10 + Math.random() * 89)} ${Math.floor(10 + Math.random() * 89)} ${Math.floor(10 + Math.random() * 89)} ${Math.floor(10 + Math.random() * 89)}`;
-      const email = `${fn.toLowerCase()}.${ln.toLowerCase().replace(/[^a-z]/g, '')}${i}@${orgName.toLowerCase().replace(/\s/g, '')}.ci`;
+      const mobilePrefix = ['6', '7', '9'][Math.floor(Math.random() * 3)];
+      const phone = `+223 ${mobilePrefix}${Math.floor(Math.random() * 10)} ${Math.floor(10 + Math.random() * 89)} ${Math.floor(10 + Math.random() * 89)} ${Math.floor(10 + Math.random() * 89)}`;
+      const email = `${fn.toLowerCase()}.${ln.toLowerCase().replace(/[^a-z]/g, '')}${i}@${orgName.toLowerCase().replace(/[\s-]/g, '')}.ml`;
       const grp = orgGroups.length > 0 ? orgGroups[Math.floor(Math.random() * orgGroups.length)][1] : null;
       const userKeys = Object.entries(userIds).filter(([k]) => {
         // Find users in this org
@@ -216,12 +217,12 @@ async function seedTestData() {
     { name: 'Rappel Factures', message: 'Bonjour, votre facture du mois est disponible. Montant: 25000 FCFA. Echeance: 31/01/2025.', org: 'Montexto Demo', user: 'resp.com@montexto.com', status: 'sent', delivered: 30, failed: 1, pending: 0 },
     { name: 'Lancement Produit', message: 'Nouveau produit disponible! Decouvrez notre nouvelle offre mobile. RDV en agence.', org: 'Montexto Demo', user: 'resp.com@montexto.com', status: 'draft', delivered: 0, failed: 0, pending: 50 },
     { name: 'Voeux fêtes', message: 'Toute l\'equipe vous souhaite de joyeuses fetes! Merci de votre fidelite.', org: 'Montexto Demo', user: 'demo@montexto.com', status: 'scheduled', delivered: 0, failed: 0, pending: 80 },
-    { name: 'Promo Credit', message: 'Besoin de credit? Profitez de nos taux preferentiels ce mois! Contactez-nous au 27 22 00 00.', org: 'Banco Atlantique', user: 'com.banco@montexto.com', status: 'sent', delivered: 60, failed: 5, pending: 0 },
-    { name: 'Info Maintenance', message: 'Info: nos services en ligne seront indisponibles le 15/02 de 02h a 04h. Merci de votre comprehension.', org: 'Banco Atlantique', user: 'com.banco@montexto.com', status: 'validated', delivered: 0, failed: 0, pending: 120 },
-    { name: 'Offre Internet', message: 'Nouvelle offre internet 4G+! 50 Go pour 5000 FCFA. Activez en composant #144#', org: 'Orange CI', user: 'admin.orange@montexto.com', status: 'sent', delivered: 200, failed: 10, pending: 0 },
-    { name: 'Campagne Annulee', message: 'Message test annule', org: 'Orange CI', user: 'admin.orange@montexto.com', status: 'cancelled', delivered: 0, failed: 0, pending: 0 },
-    { name: 'Reunion Staff', message: 'Rappel: reunion generale du personnel le 20/02 a 09h en salle de conference.', org: 'Groupe SIFCA', user: 'op.sifca@montexto.com', status: 'sent', delivered: 15, failed: 0, pending: 0 },
-    { name: 'Paie du mois', message: 'Votre salaire du mois a ete verse. Montant net: 450000 FCFA. Compte: XXXX4521.', org: 'Groupe SIFCA', user: 'op.sifca@montexto.com', status: 'draft', delivered: 0, failed: 0, pending: 35 },
+    { name: 'Promo Credit', message: 'Besoin de credit? Profitez de nos taux preferentiels ce mois! Contactez-nous au 20 22 00 00.', org: 'BDM-SA', user: 'com.bdm@montexto.com', status: 'sent', delivered: 60, failed: 5, pending: 0 },
+    { name: 'Info Maintenance', message: 'Info: nos services en ligne seront indisponibles le 15/02 de 02h a 04h. Merci de votre comprehension.', org: 'BDM-SA', user: 'com.bdm@montexto.com', status: 'validated', delivered: 0, failed: 0, pending: 120 },
+    { name: 'Offre Internet', message: 'Nouvelle offre internet 4G+! 50 Go pour 5000 FCFA. Activez en composant #144#', org: 'Orange Mali', user: 'admin.orange@montexto.com', status: 'sent', delivered: 200, failed: 10, pending: 0 },
+    { name: 'Campagne Annulee', message: 'Message test annule', org: 'Orange Mali', user: 'admin.orange@montexto.com', status: 'cancelled', delivered: 0, failed: 0, pending: 0 },
+    { name: 'Reunion Staff', message: 'Rappel: reunion generale du personnel le 20/02 a 09h en salle de conference.', org: 'CMDT', user: 'op.cmdt@montexto.com', status: 'sent', delivered: 15, failed: 0, pending: 0 },
+    { name: 'Paie du mois', message: 'Votre salaire du mois a ete verse. Montant net: 450000 FCFA. Compte: XXXX4521.', org: 'CMDT', user: 'op.cmdt@montexto.com', status: 'draft', delivered: 0, failed: 0, pending: 35 },
   ];
 
   const campaignIds = [];
@@ -277,8 +278,8 @@ async function seedTestData() {
   console.log('8. Passerelles SMS...');
   const gateways = [
     { name: 'Twilio Principal', provider: 'twilio', config: '{"accountSid":"ACxxx","authToken":"xxx","from":"+1234567890"}', isDefault: 1 },
-    { name: 'Orange SMS API', provider: 'orange', config: '{"clientId":"xxx","clientSecret":"xxx","sender":"MONTX"}', isDefault: 0 },
-    { name: 'MT Mobile CI', provider: 'mt', config: '{"apiKey":"xxx","sender":"MONTX"}', isDefault: 0 },
+    { name: 'Orange SMS API', provider: 'orange', config: '{"clientId":"xxx","clientSecret":"xxx","senderAddress":"+22376000000"}', isDefault: 0 },
+    { name: 'MT Mobile Mali', provider: 'mt', config: '{"apiKey":"xxx","sender":"MONTX"}', isDefault: 0 },
   ];
   for (const g of gateways) {
     const existing = await getOne('SELECT id FROM sms_gateways WHERE name = ?', [g.name]);
@@ -309,7 +310,7 @@ async function seedTestData() {
 
   // ─── 10. Recharges ─────────────────────────────────────────────
   console.log('10. Recharges...');
-  const rechargeMethods = ['Manuel', 'Orange Money', 'MTN Money', 'Moov Money', 'Virement'];
+  const rechargeMethods = ['Manuel', 'Orange Money', 'Moov Money', 'Virement'];
   let rechargeCount = 0;
   for (const [orgName, orgId] of Object.entries(orgIds)) {
     const numRecharges = 3 + Math.floor(Math.random() * 4);
@@ -464,10 +465,10 @@ async function seedTestData() {
   console.log('  Resp Com:       resp.com@montexto.com / resp123');
   console.log('  Operateur:      operator@montexto.com / op123');
   console.log('  Auditeur:       auditor@montexto.com / audit123');
-  console.log('  Admin Banco:    admin.banco@montexto.com / banco123');
-  console.log('  Com Banco:      com.banco@montexto.com / bcom123');
+  console.log('  Admin BDM-SA:   admin.bdm@montexto.com / bdm123');
+  console.log('  Com BDM-SA:     com.bdm@montexto.com / bdmcom123');
   console.log('  Admin Orange:   admin.orange@montexto.com / orange123');
-  console.log('  Op SIFCA:       op.sifca@montexto.com / sifca123');
+  console.log('  Op CMDT:        op.cmdt@montexto.com / cmdt123');
   console.log(`\nToken reset demo: ${resetToken}`);
   db.close();
 }
