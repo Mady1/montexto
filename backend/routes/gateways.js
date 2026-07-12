@@ -3,10 +3,25 @@ const db = require('../config/db');
 const { authenticateToken } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 const { auditLog } = require('../middleware/audit');
+const smsGateway = require('../services/smsGateway');
 
 const router = express.Router();
 
 router.use(authenticateToken);
+
+// Test a gateway's credentials (and optionally send a real test SMS), without
+// requiring it to be saved first — lets the UI validate a draft configuration.
+router.post('/test', requirePermission('admin.gateways'), async (req, res) => {
+  const { provider, config, testPhone } = req.body;
+  if (!provider || !config) return res.status(400).json({ error: 'provider et config requis' });
+
+  try {
+    const result = await smsGateway.testGateway({ provider, config, testPhone });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // List all gateways
 router.get('/', (req, res) => {

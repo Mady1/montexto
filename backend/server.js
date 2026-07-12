@@ -22,6 +22,7 @@ const inboundRoutes = require('./routes/inbound');
 const blacklistRoutes = require('./routes/blacklist');
 const importRoutes = require('./routes/imports');
 const smsWorker = require('./services/smsWorker');
+const smsGateway = require('./services/smsGateway');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -62,4 +63,5 @@ if (process.env.NODE_ENV === 'production') {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   smsWorker.start();
+  smsGateway.subscribeOrangeDeliveryReceipts();
 });

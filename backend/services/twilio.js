@@ -44,4 +44,23 @@ async function sendSms({ to, body, config = {} }) {
   }
 }
 
-module.exports = { sendSms };
+// Validates credentials via a lightweight, read-only Twilio API call (fetches
+// the account resource) — doesn't send anything.
+async function testAuth({ config = {} }) {
+  const accountSid = config.accountSid || envAccountSid;
+  const authToken = config.authToken || envAuthToken;
+
+  if (!accountSid || !authToken || !accountSid.startsWith('AC')) {
+    return { success: false, message: 'Account SID (commençant par "AC") et Auth Token requis' };
+  }
+
+  try {
+    const client = twilio(accountSid, authToken);
+    const account = await client.api.accounts(accountSid).fetch();
+    return { success: true, message: `Authentification réussie (compte "${account.friendlyName}", statut: ${account.status})` };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+}
+
+module.exports = { sendSms, testAuth };

@@ -3,7 +3,7 @@ const db = require('../config/db');
 const { authenticateToken } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 const { auditLog } = require('../middleware/audit');
-const { sendSms } = require('../services/twilio');
+const smsGateway = require('../services/smsGateway');
 const smsWorker = require('../services/smsWorker');
 
 const router = express.Router();
@@ -30,11 +30,12 @@ router.post('/send', requirePermission('sms.send'), auditLog('sms.send'), async 
 
 function doSend(req, res, to, message) {
   // Check blacklist
-  db.get('SELECT id FROM blacklist WHERE organization_id = ? AND phone = ?', [req.user.organization_id, to], (blErr, blRow) => {
+  db.get('SELECT id FROM blacklist WHERE organization_id = ? AND phone = ?', [req.user.organization_id, to], async (blErr, blRow) => {
     if (blRow) return res.status(403).json({ error: 'Ce numéro est en liste noire (DND)' });
 
-  const result = sendSms({ to, body: message });
-  result.then((smsResult) => {
+    const gateway = await smsGateway.getDefaultGateway();
+    const smsResult = await smsGateway.sendSms({ to, body: message, gateway });
+
     // Deduct credit from org
     if (req.user.organization_id && smsResult.status !== 'failed') {
       db.run('UPDATE organizations SET sms_balance = sms_balance - 1 WHERE id = ?', [req.user.organization_id]);
@@ -56,7 +57,6 @@ function doSend(req, res, to, message) {
         });
       }
     );
-  });
   });
 }
 
@@ -94,12 +94,14 @@ async function doBulkSend(req, res, phones, message) {
   const validPhones = phones.filter((p) => !blacklisted.has(p));
   const skipped = phones.length - validPhones.length;
 
+  const gateway = await smsGateway.getDefaultGateway();
+
   let delivered = 0;
   let failed = 0;
   const results = [];
 
   for (const phone of validPhones) {
-    const smsResult = await sendSms({ to: phone, body: message });
+    const smsResult = await smsGateway.sendSms({ to: phone, body: message, gateway });
     const status = smsResult.status === 'simulated' ? 'simulated' : (smsResult.error ? 'failed' : 'delivered');
 
     db.run(

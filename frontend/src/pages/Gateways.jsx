@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Server, Trash2, Star, Loader2, X, Check, Radio } from 'lucide-react'
+import { Plus, Server, Trash2, Star, Loader2, X, Check, Radio, Zap, CheckCircle2, XCircle, Eye, EyeOff } from 'lucide-react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import Modal from '../components/Modal'
@@ -22,6 +22,33 @@ export default function Gateways() {
   const [form, setForm] = useState({ name: '', provider: 'twilio', config: {}, isDefault: false, status: 'active' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showSecret, setShowSecret] = useState(false)
+  const [testPhone, setTestPhone] = useState('')
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState(null)
+
+  const STRUCTURED_PROVIDERS = ['orange', 'twilio']
+
+  const updateConfig = (key, value) => {
+    setForm((prev) => ({ ...prev, config: { ...prev.config, [key]: value } }))
+  }
+
+  const handleTest = async () => {
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const res = await api.post('/gateways/test', {
+        provider: form.provider,
+        config: form.config,
+        testPhone: testPhone.trim() || undefined,
+      })
+      setTestResult(res.data)
+    } catch (err) {
+      setTestResult({ auth: { success: false, message: err.response?.data?.error || 'Erreur de test' } })
+    } finally {
+      setTesting(false)
+    }
+  }
 
   useEffect(() => {
     fetchGateways()
@@ -42,6 +69,8 @@ export default function Gateways() {
     setEditing(null)
     setForm({ name: '', provider: 'twilio', config: {}, isDefault: false, status: 'active' })
     setError('')
+    setTestPhone('')
+    setTestResult(null)
     setShowModal(true)
   }
 
@@ -55,6 +84,8 @@ export default function Gateways() {
       status: g.status,
     })
     setError('')
+    setTestPhone('')
+    setTestResult(null)
     setShowModal(true)
   }
 
@@ -209,18 +240,143 @@ export default function Gateways() {
                 <option value="custom">Personnalisé</option>
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Configuration (JSON)</label>
-              <textarea
-                value={JSON.stringify(form.config, null, 2)}
-                onChange={(e) => {
-                  try { setForm({ ...form, config: JSON.parse(e.target.value) }) } catch {}
-                }}
-                className="gem-input w-full font-mono text-xs"
-                rows={5}
-                placeholder='{"accountSid": "...", "authToken": "...", "from": "+123..."}'
-              />
-            </div>
+            {form.provider === 'orange' ? (
+              <div className="space-y-3 p-3 rounded-xl bg-gray-50">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Client ID</label>
+                  <input
+                    type="text"
+                    value={form.config.clientId || ''}
+                    onChange={(e) => updateConfig('clientId', e.target.value)}
+                    className="gem-input w-full font-mono text-xs"
+                    placeholder="Fourni par Orange Developer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Client Secret</label>
+                  <div className="relative">
+                    <input
+                      type={showSecret ? 'text' : 'password'}
+                      value={form.config.clientSecret || ''}
+                      onChange={(e) => updateConfig('clientSecret', e.target.value)}
+                      className="gem-input w-full font-mono text-xs pr-10"
+                      placeholder="Fourni par Orange Developer"
+                    />
+                    <button type="button" onClick={() => setShowSecret((s) => !s)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Numéro expéditeur (senderAddress)</label>
+                  <input
+                    type="text"
+                    value={form.config.senderAddress || ''}
+                    onChange={(e) => updateConfig('senderAddress', e.target.value)}
+                    className="gem-input w-full font-mono text-xs"
+                    placeholder="+22376000000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Nom expéditeur <span className="text-gray-400">(optionnel)</span></label>
+                  <input
+                    type="text"
+                    value={form.config.senderName || ''}
+                    onChange={(e) => updateConfig('senderName', e.target.value)}
+                    className="gem-input w-full"
+                    placeholder="Montexto"
+                  />
+                </div>
+              </div>
+            ) : form.provider === 'twilio' ? (
+              <div className="space-y-3 p-3 rounded-xl bg-gray-50">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Account SID</label>
+                  <input
+                    type="text"
+                    value={form.config.accountSid || ''}
+                    onChange={(e) => updateConfig('accountSid', e.target.value)}
+                    className="gem-input w-full font-mono text-xs"
+                    placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Auth Token</label>
+                  <div className="relative">
+                    <input
+                      type={showSecret ? 'text' : 'password'}
+                      value={form.config.authToken || ''}
+                      onChange={(e) => updateConfig('authToken', e.target.value)}
+                      className="gem-input w-full font-mono text-xs pr-10"
+                    />
+                    <button type="button" onClick={() => setShowSecret((s) => !s)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Numéro Twilio (from)</label>
+                  <input
+                    type="text"
+                    value={form.config.from || ''}
+                    onChange={(e) => updateConfig('from', e.target.value)}
+                    className="gem-input w-full font-mono text-xs"
+                    placeholder="+15551234567"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Configuration (JSON)</label>
+                <textarea
+                  value={JSON.stringify(form.config, null, 2)}
+                  onChange={(e) => {
+                    try { setForm({ ...form, config: JSON.parse(e.target.value) }) } catch {}
+                  }}
+                  className="gem-input w-full font-mono text-xs"
+                  rows={5}
+                  placeholder='{"apiKey": "...", "sender": "..."}'
+                />
+              </div>
+            )}
+
+            {STRUCTURED_PROVIDERS.includes(form.provider) && (
+              <div className="p-3 rounded-xl border border-dashed border-gray-200 space-y-2">
+                <label className="block text-xs font-medium text-gray-500">Tester la connexion</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={testPhone}
+                    onChange={(e) => setTestPhone(e.target.value)}
+                    className="gem-input flex-1 text-xs"
+                    placeholder="Numéro de test (optionnel) — sinon vérifie juste l'authentification"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleTest}
+                    disabled={testing}
+                    className="gem-btn-secondary flex items-center gap-1.5 text-xs px-3 whitespace-nowrap disabled:opacity-60"
+                  >
+                    {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                    Tester
+                  </button>
+                </div>
+                {testResult && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className={`flex items-start gap-2 text-xs ${testResult.auth?.success ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {testResult.auth?.success ? <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" /> : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                      <span>{testResult.auth?.message}</span>
+                    </div>
+                    {testResult.send?.attempted && (
+                      <div className={`flex items-start gap-2 text-xs ${testResult.send.success ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {testResult.send.success ? <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" /> : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+                        <span>{testResult.send.message}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">Statut</label>
               <select
