@@ -143,11 +143,11 @@ export default function Statistics() {
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                      <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e8eaed', fontSize: '13px' }} />
-                      <Bar dataKey="messages" fill="#4285f4" radius={[8, 8, 0, 0]} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--gem-border)" />
+                      <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'var(--gem-subtle)' }} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--gem-subtle)' }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--gem-border)', background: 'var(--gem-surface)', fontSize: '13px' }} />
+                      <Bar dataKey="messages" fill="var(--gem-accent)" radius={[8, 8, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
