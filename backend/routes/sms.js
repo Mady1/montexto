@@ -3,8 +3,7 @@ const db = require('../config/db');
 const { authenticateToken } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 const { auditLog } = require('../middleware/audit');
-const smsGateway = require('../services/smsGateway');
-const smsWorker = require('../services/smsWorker');
+const smsSender = require('../services/smsSender');
 
 const router = express.Router();
 
@@ -15,54 +14,13 @@ router.post('/send', requirePermission('sms.send'), auditLog('sms.send'), async 
   const { to, message } = req.body;
   if (!to || !message) return res.status(400).json({ error: 'Phone and message required' });
 
-  // Check org SMS balance for non-super-admins
-  if (req.user.organization_id) {
-    db.get('SELECT sms_balance FROM organizations WHERE id = ?', [req.user.organization_id], (err, org) => {
-      if (err || !org) return res.status(500).json({ error: 'Organization not found' });
-      if (org.sms_balance <= 0) return res.status(403).json({ error: 'Insufficient SMS credits' });
-
-      doSend(req, res, to, message);
-    });
-  } else {
-    doSend(req, res, to, message);
+  try {
+    const result = await smsSender.sendSingleSms({ organizationId: req.user.organization_id, to, message });
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
-
-function doSend(req, res, to, message) {
-  // Check blacklist
-  db.get('SELECT id FROM blacklist WHERE organization_id = ? AND phone = ?', [req.user.organization_id, to], async (blErr, blRow) => {
-    if (blRow) return res.status(403).json({ error: 'Ce numéro est en liste noire (DND)' });
-
-    try {
-      const gateway = await smsGateway.getDefaultGateway();
-      const smsResult = await smsGateway.sendSms({ to, body: message, gateway });
-
-      // Deduct credit from org
-      if (req.user.organization_id && smsResult.status !== 'failed') {
-        db.run('UPDATE organizations SET sms_balance = sms_balance - 1 WHERE id = ?', [req.user.organization_id]);
-      }
-
-      // Log in campaign_recipients as a standalone SMS (campaign_id = null)
-      db.run(
-        'INSERT INTO campaign_recipients (campaign_id, organization_id, contact_id, phone, status, error_message, twilio_sid, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [null, req.user.organization_id, null, to, smsResult.status === 'simulated' ? 'simulated' : (smsResult.error ? 'failed' : 'delivered'), smsResult.error, smsResult.sid, new Date().toISOString()],
-        function (err) {
-          if (err) return res.status(500).json({ error: 'Database error' });
-          res.status(201).json({
-            id: this.lastID,
-            to,
-            message,
-            status: smsResult.status,
-            sid: smsResult.sid,
-            error: smsResult.error,
-          });
-        }
-      );
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-}
 
 // Send bulk SMS (direct, not via campaign)
 router.post('/send-bulk', requirePermission('sms.send_bulk'), auditLog('sms.send_bulk'), async (req, res) => {
@@ -71,69 +29,13 @@ router.post('/send-bulk', requirePermission('sms.send_bulk'), auditLog('sms.send
     return res.status(400).json({ error: 'Phones array and message required' });
   }
 
-  // Check org SMS balance
-  if (req.user.organization_id) {
-    db.get('SELECT sms_balance FROM organizations WHERE id = ?', [req.user.organization_id], (err, org) => {
-      if (err || !org) return res.status(500).json({ error: 'Organization not found' });
-      if (org.sms_balance < phones.length) {
-        return res.status(403).json({ error: `Insufficient SMS credits. Need ${phones.length}, have ${org.sms_balance}` });
-      }
-      doBulkSend(req, res, phones, message);
-    });
-  } else {
-    doBulkSend(req, res, phones, message);
+  try {
+    const result = await smsSender.sendBulkSms({ organizationId: req.user.organization_id, phones, message });
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
-
-async function doBulkSend(req, res, phones, message) {
-  try {
-    await sendBulk(req, res, phones, message);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-}
-
-async function sendBulk(req, res, phones, message) {
-  // Filter out blacklisted numbers
-  const blacklisted = new Set();
-  if (req.user.organization_id) {
-    const blRows = await new Promise((resolve) => {
-      db.all('SELECT phone FROM blacklist WHERE organization_id = ?', [req.user.organization_id], (e, r) => resolve(r || []));
-    });
-    blRows.forEach((r) => blacklisted.add(r.phone));
-  }
-
-  const validPhones = phones.filter((p) => !blacklisted.has(p));
-  const skipped = phones.length - validPhones.length;
-
-  const gateway = await smsGateway.getDefaultGateway();
-
-  let delivered = 0;
-  let failed = 0;
-  const results = [];
-
-  for (const phone of validPhones) {
-    const smsResult = await smsGateway.sendSms({ to: phone, body: message, gateway });
-    const status = smsResult.status === 'simulated' ? 'simulated' : (smsResult.error ? 'failed' : 'delivered');
-
-    db.run(
-      'INSERT INTO campaign_recipients (campaign_id, organization_id, contact_id, phone, status, error_message, twilio_sid, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [null, req.user.organization_id, null, phone, status, smsResult.error, smsResult.sid, new Date().toISOString()]
-    );
-
-    if (smsResult.error) failed++;
-    else delivered++;
-
-    results.push({ phone, status, sid: smsResult.sid, error: smsResult.error });
-  }
-
-  // Deduct credits
-  if (req.user.organization_id) {
-    db.run('UPDATE organizations SET sms_balance = sms_balance - ? WHERE id = ?', [delivered, req.user.organization_id]);
-  }
-
-  res.status(201).json({ total: phones.length, delivered, failed, skipped, results });
-}
 
 // SMS history (standalone SMS + campaign recipients)
 router.get('/history', requirePermission('sms.history'), (req, res) => {

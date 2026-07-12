@@ -1,6 +1,37 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Loader2, Copy, Check, Eye, EyeOff, ShieldCheck, KeyRound, Code2 } from 'lucide-react'
+import { Plus, Trash2, Loader2, Copy, Check, Eye, EyeOff, ShieldCheck, KeyRound, Code2, Terminal } from 'lucide-react'
 import api from '../services/api'
+
+const API_BASE = `${window.location.origin}/api/v1`
+
+const ENDPOINTS = [
+  {
+    method: 'POST',
+    path: '/sms/send',
+    desc: 'Envoyer un SMS à un numéro',
+    body: '{"to": "+22376123456", "message": "Bonjour !"}',
+  },
+  {
+    method: 'POST',
+    path: '/sms/send-bulk',
+    desc: 'Envoyer un SMS à plusieurs numéros',
+    body: '{"phones": ["+22376000001", "+22376000002"], "message": "Bonjour !"}',
+  },
+  {
+    method: 'GET',
+    path: '/balance',
+    desc: 'Consulter le solde de crédits SMS',
+    body: null,
+  },
+]
+
+function curlFor(endpoint, sampleKey) {
+  const url = `${API_BASE}${endpoint.path}`
+  if (endpoint.method === 'GET') {
+    return `curl "${url}" \\\n  -H "X-API-Key: ${sampleKey}"`
+  }
+  return `curl -X POST "${url}" \\\n  -H "X-API-Key: ${sampleKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '${endpoint.body}'`
+}
 
 export default function ApiKeys() {
   const [keys, setKeys] = useState([])
@@ -80,6 +111,28 @@ export default function ApiKeys() {
         </div>
       </div>
 
+      <div className="gem-card p-6 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Terminal className="w-4 h-4 text-brand-500" />
+          <h3 className="text-base font-semibold text-gray-800">Utiliser l'API</h3>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Authentifiez chaque requête avec l'en-tête <code className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-xs">X-API-Key</code>. Base URL : <code className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-xs">{API_BASE}</code>
+        </p>
+        <div className="space-y-3">
+          {ENDPOINTS.map((ep) => (
+            <div key={ep.path} className="rounded-xl bg-gray-50 overflow-hidden">
+              <div className="px-4 py-2 flex items-center gap-2 text-xs">
+                <span className={`font-mono font-semibold px-1.5 py-0.5 rounded ${ep.method === 'GET' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>{ep.method}</span>
+                <span className="font-mono text-gray-600">{ep.path}</span>
+                <span className="text-gray-400">— {ep.desc}</span>
+              </div>
+              <pre className="px-4 pb-3 text-xs font-mono text-gray-500 overflow-x-auto whitespace-pre">{curlFor(ep, keys[0]?.key_value || 'VOTRE_CLE_API')}</pre>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <form onSubmit={handleSubmit} className="gem-card p-6 mb-6">
         <div className="flex space-x-4">
           <div className="flex-1">
@@ -123,7 +176,10 @@ export default function ApiKeys() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-800 text-sm">{k.name}</h3>
-                    <span className="text-xs text-gray-400">Créée le {new Date(k.created_at).toLocaleString('fr-FR')}</span>
+                    <span className="text-xs text-gray-400">
+                      Créée le {new Date(k.created_at).toLocaleString('fr-FR')}
+                      {k.last_used_at ? ` · Dernière utilisation ${new Date(k.last_used_at).toLocaleString('fr-FR')}` : ' · Jamais utilisée'}
+                    </span>
                   </div>
                 </div>
                 <button onClick={() => handleDelete(k.id)} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">

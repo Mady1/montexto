@@ -21,6 +21,7 @@ const notificationRoutes = require('./routes/notifications');
 const inboundRoutes = require('./routes/inbound');
 const blacklistRoutes = require('./routes/blacklist');
 const importRoutes = require('./routes/imports');
+const publicApiRoutes = require('./routes/publicApi');
 const smsWorker = require('./services/smsWorker');
 const smsGateway = require('./services/smsGateway');
 
@@ -48,6 +49,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/inbound', inboundRoutes);
 app.use('/api/blacklist', blacklistRoutes);
 app.use('/api/imports', importRoutes);
+app.use('/api/v1', publicApiRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

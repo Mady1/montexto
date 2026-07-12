@@ -7,12 +7,12 @@ const router = express.Router();
 
 router.get('/', authenticateToken, (req, res) => {
   if (req.user.role_name === 'super_admin') {
-    db.all('SELECT id, name, key_value, created_at FROM api_keys ORDER BY created_at DESC', [], (err, rows) => {
+    db.all('SELECT id, name, key_value, created_at, last_used_at FROM api_keys ORDER BY created_at DESC', [], (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json(rows);
     });
   } else {
-    db.all('SELECT id, name, key_value, created_at FROM api_keys WHERE organization_id = ? ORDER BY created_at DESC', [req.user.organization_id], (err, rows) => {
+    db.all('SELECT id, name, key_value, created_at, last_used_at FROM api_keys WHERE organization_id = ? ORDER BY created_at DESC', [req.user.organization_id], (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json(rows);
     });
