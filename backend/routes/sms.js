@@ -33,30 +33,34 @@ function doSend(req, res, to, message) {
   db.get('SELECT id FROM blacklist WHERE organization_id = ? AND phone = ?', [req.user.organization_id, to], async (blErr, blRow) => {
     if (blRow) return res.status(403).json({ error: 'Ce numéro est en liste noire (DND)' });
 
-    const gateway = await smsGateway.getDefaultGateway();
-    const smsResult = await smsGateway.sendSms({ to, body: message, gateway });
+    try {
+      const gateway = await smsGateway.getDefaultGateway();
+      const smsResult = await smsGateway.sendSms({ to, body: message, gateway });
 
-    // Deduct credit from org
-    if (req.user.organization_id && smsResult.status !== 'failed') {
-      db.run('UPDATE organizations SET sms_balance = sms_balance - 1 WHERE id = ?', [req.user.organization_id]);
-    }
-
-    // Log in campaign_recipients as a standalone SMS (campaign_id = null)
-    db.run(
-      'INSERT INTO campaign_recipients (campaign_id, organization_id, contact_id, phone, status, error_message, twilio_sid, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [null, req.user.organization_id, null, to, smsResult.status === 'simulated' ? 'simulated' : (smsResult.error ? 'failed' : 'delivered'), smsResult.error, smsResult.sid, new Date().toISOString()],
-      function (err) {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        res.status(201).json({
-          id: this.lastID,
-          to,
-          message,
-          status: smsResult.status,
-          sid: smsResult.sid,
-          error: smsResult.error,
-        });
+      // Deduct credit from org
+      if (req.user.organization_id && smsResult.status !== 'failed') {
+        db.run('UPDATE organizations SET sms_balance = sms_balance - 1 WHERE id = ?', [req.user.organization_id]);
       }
-    );
+
+      // Log in campaign_recipients as a standalone SMS (campaign_id = null)
+      db.run(
+        'INSERT INTO campaign_recipients (campaign_id, organization_id, contact_id, phone, status, error_message, twilio_sid, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [null, req.user.organization_id, null, to, smsResult.status === 'simulated' ? 'simulated' : (smsResult.error ? 'failed' : 'delivered'), smsResult.error, smsResult.sid, new Date().toISOString()],
+        function (err) {
+          if (err) return res.status(500).json({ error: 'Database error' });
+          res.status(201).json({
+            id: this.lastID,
+            to,
+            message,
+            status: smsResult.status,
+            sid: smsResult.sid,
+            error: smsResult.error,
+          });
+        }
+      );
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
   });
 }
 
@@ -82,6 +86,14 @@ router.post('/send-bulk', requirePermission('sms.send_bulk'), auditLog('sms.send
 });
 
 async function doBulkSend(req, res, phones, message) {
+  try {
+    await sendBulk(req, res, phones, message);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+
+async function sendBulk(req, res, phones, message) {
   // Filter out blacklisted numbers
   const blacklisted = new Set();
   if (req.user.organization_id) {

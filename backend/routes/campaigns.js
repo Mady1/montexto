@@ -53,6 +53,14 @@ router.get('/:id', (req, res) => {
 });
 
 router.post('/', requirePermission('campaigns.create'), auditLog('campaign.create'), async (req, res) => {
+  try {
+    await createCampaign(req, res);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+async function createCampaign(req, res) {
   const { name, message, type = 'sms', groupId, recipients: manualRecipients = [], scheduleAt } = req.body;
 
   let phones = [];
@@ -150,7 +158,7 @@ router.post('/', requirePermission('campaigns.create'), auditLog('campaign.creat
   );
 
   res.status(201).json({ id: campaignId, total, delivered, failed });
-});
+}
 
 // Update campaign (only if draft or scheduled)
 router.put('/:id', requirePermission('campaigns.edit'), auditLog('campaign.update'), (req, res) => {

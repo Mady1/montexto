@@ -74,12 +74,22 @@ export default function Gateways() {
     setShowModal(true)
   }
 
+  const parseGatewayConfig = (raw) => {
+    if (!raw) return {}
+    if (typeof raw !== 'string') return raw
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return {}
+    }
+  }
+
   const openEdit = (g) => {
     setEditing(g)
     setForm({
       name: g.name,
       provider: g.provider,
-      config: g.config ? (typeof g.config === 'string' ? JSON.parse(g.config) : g.config) : {},
+      config: parseGatewayConfig(g.config),
       isDefault: !!g.is_default,
       status: g.status,
     })
