@@ -151,7 +151,7 @@ async function createCampaign(req, res) {
     const personalizedMessage = renderTemplate(message, recipient);
     const result = isMail
       ? await mailGateway.sendMail({ to: recipient.phone, subject: name, body: personalizedMessage, gateway })
-      : await smsGateway.sendSms({ to: recipient.phone, body: personalizedMessage, gateway });
+      : await smsGateway.sendSms({ to: recipient.phone, body: personalizedMessage, gateway, correlationId: recipient.id });
     if (result.error) {
       failed++;
       db.run('UPDATE campaign_recipients SET status = ?, error_message = ?, sent_at = ? WHERE id = ?', [

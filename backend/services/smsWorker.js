@@ -102,7 +102,7 @@ function sendQueuedItem(item, defaultGateway) {
 
       const result = item.channel === 'mail'
         ? await mailGateway.sendMail({ to: item.phone, subject: item.subject, body: item.message, gateway })
-        : await smsGateway.sendSms({ to: item.phone, body: item.message, gateway });
+        : await smsGateway.sendSms({ to: item.phone, body: item.message, gateway, correlationId: item.id });
       const success = result.status !== 'failed';
 
       if (success) {
@@ -112,11 +112,12 @@ function sendQueuedItem(item, defaultGateway) {
           [result.sid, item.id]
         );
 
-        // Update campaign_recipients
+        // Update campaign_recipients (twilio_sid stored too so the DR webhook can
+        // correlate exactly by callbackData instead of guessing by phone number)
         if (item.campaign_id) {
           db.run(
-            "UPDATE campaign_recipients SET status = 'delivered', sent_at = datetime('now') WHERE campaign_id = ? AND phone = ?",
-            [item.campaign_id, item.phone]
+            "UPDATE campaign_recipients SET status = 'delivered', sent_at = datetime('now'), twilio_sid = ? WHERE campaign_id = ? AND phone = ?",
+            [result.sid, item.campaign_id, item.phone]
           );
 
           // Update campaign counters

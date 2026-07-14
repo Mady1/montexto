@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const db = require('../config/db');
 const smsGateway = require('./smsGateway');
 
@@ -35,7 +36,7 @@ async function sendSingleSms({ organizationId, to, message }) {
   }
 
   const gateway = await smsGateway.getDefaultGateway();
-  const smsResult = await smsGateway.sendSms({ to, body: message, gateway });
+  const smsResult = await smsGateway.sendSms({ to, body: message, gateway, correlationId: crypto.randomUUID() });
 
   if (organizationId && smsResult.status !== 'failed') {
     db.run('UPDATE organizations SET sms_balance = sms_balance - 1 WHERE id = ?', [organizationId]);
@@ -81,7 +82,7 @@ async function sendBulkSms({ organizationId, phones, message }) {
   const results = [];
 
   for (const phone of validPhones) {
-    const smsResult = await smsGateway.sendSms({ to: phone, body: message, gateway });
+    const smsResult = await smsGateway.sendSms({ to: phone, body: message, gateway, correlationId: crypto.randomUUID() });
     const status = smsResult.status === 'simulated' ? 'simulated' : (smsResult.error ? 'failed' : 'delivered');
 
     db.run(

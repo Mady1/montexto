@@ -34,7 +34,7 @@ function getDefaultGateway() {
 
 // Sends through a specific gateway row (provider + config). Falls back to Twilio/env
 // credentials when no gateway is configured, so the app keeps working out of the box.
-async function sendSms({ to, body, gateway }) {
+async function sendSms({ to, body, gateway, correlationId }) {
   const provider = gateway?.provider || 'twilio';
   const send = PROVIDERS[provider];
 
@@ -49,7 +49,7 @@ async function sendSms({ to, body, gateway }) {
   }
 
   const config = parseConfig(gateway?.config);
-  const result = await send({ to, body, config });
+  const result = await send({ to, body, config, correlationId });
   return { ...result, gatewayId: gateway?.id || null, provider };
 }
 

@@ -154,7 +154,7 @@ async function testAuth({ config = {} }) {
   }
 }
 
-async function sendSms({ to, body, config = {} }) {
+async function sendSms({ to, body, config = {}, correlationId }) {
   const clientId = config.clientId || envClientId;
   const clientSecret = config.clientSecret || envClientSecret;
   const senderAddress = config.senderAddress || config.sender || envSenderAddress;
@@ -170,12 +170,19 @@ async function sendSms({ to, body, config = {} }) {
 
   try {
     const sender = toTelFormat(senderAddress);
+    // clientCorrelator max 32 chars, so a caller-supplied stable id (e.g. a queue row id) is
+    // safe to retry with, and lets Orange dedupe if a prior attempt actually went through.
+    const correlator = correlationId ? String(correlationId).slice(0, 32) : undefined;
 
     const payload = {
       outboundSMSMessageRequest: {
         address: toTelFormat(to),
         senderAddress: sender,
         ...(senderName ? { senderName } : {}),
+        ...(correlator ? { clientCorrelator: correlator } : {}),
+        // Echoed back as callbackData in the delivery receipt, so the DR webhook can
+        // correlate exactly instead of guessing by recipient phone (see routes/inbound.js).
+        ...(correlator ? { receiptRequest: { callbackData: correlator } } : {}),
         outboundSMSTextMessage: { message: body },
       },
     };
@@ -194,11 +201,11 @@ async function sendSms({ to, body, config = {} }) {
     );
 
     // Some Orange SMS products echo a resourceURL (…/requests/{resource_id}) that can be
-    // saved to correlate a delivery receipt; others don't return one at all. Fall back to a
-    // synthetic id so the DR webhook still correlates by recipient phone (see routes/inbound.js).
+    // saved to correlate a delivery receipt; others don't return one at all. Prefer our own
+    // correlator (guaranteed to match the DR's callbackData) over a possibly-absent resourceURL.
     const resourceURL = response.data?.outboundSMSMessageRequest?.resourceURL;
     return {
-      sid: resourceURL ? resourceURL.split('/').pop() : `ORANGE_${Date.now()}`,
+      sid: correlator || (resourceURL ? resourceURL.split('/').pop() : `ORANGE_${Date.now()}`),
       status: 'sent',
       error: null,
     };

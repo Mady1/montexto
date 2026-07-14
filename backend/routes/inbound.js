@@ -78,11 +78,14 @@ router.post('/dr', (req, res) => {
   const deliveryInfo = req.body?.deliveryInfoNotification?.deliveryInfo || req.body?.deliveryInfo || {};
   const rawAddress = deliveryInfo.address || req.body?.address || '';
   const deliveryStatus = deliveryInfo.deliveryStatus || req.body?.deliveryStatus || '';
+  // Echoed back from the clientCorrelator/receiptRequest.callbackData we sent with the
+  // original message (see orangeSms.js) — lets us correlate exactly instead of by phone.
+  const callbackData = req.body?.deliveryInfoNotification?.callbackData || req.body?.callbackData || null;
   const phone = rawAddress.replace(/^tel:/, '');
 
-  if (!phone || !deliveryStatus) {
+  if ((!phone && !callbackData) || !deliveryStatus) {
     console.warn('[DR Webhook] Unrecognized payload:', JSON.stringify(req.body));
-    return res.status(400).json({ error: 'Missing address or deliveryStatus' });
+    return res.status(400).json({ error: 'Missing address/callbackData or deliveryStatus' });
   }
 
   const DELIVERED_STATUSES = ['DeliveredToTerminal', 'MessageForwarded'];
@@ -95,23 +98,34 @@ router.post('/dr', (req, res) => {
   // Interim statuses (DeliveredToNetwork, MessageWaiting, DeliveryUncertain, ...): nothing final to record yet.
   if (!newStatus) return res.json({ status: 'acknowledged' });
 
-  db.run(
-    `UPDATE campaign_recipients SET status = ?, error_message = ?
-     WHERE id = (SELECT id FROM campaign_recipients WHERE phone = ? AND status != 'failed' ORDER BY id DESC LIMIT 1)`,
-    [newStatus, newStatus === 'failed' ? deliveryStatus : null, phone],
-    (err) => {
-      if (err) console.error('[DR Webhook] Error updating campaign_recipients:', err);
-    }
-  );
+  const errorMessage = newStatus === 'failed' ? deliveryStatus : null;
 
-  db.run(
-    `UPDATE sms_queue SET status = ?, error_message = ?
-     WHERE id = (SELECT id FROM sms_queue WHERE phone = ? AND status = 'sent' ORDER BY id DESC LIMIT 1)`,
-    [newStatus, newStatus === 'failed' ? deliveryStatus : null, phone],
-    (err) => {
-      if (err) console.error('[DR Webhook] Error updating sms_queue:', err);
-    }
-  );
+  if (callbackData) {
+    db.run(
+      `UPDATE campaign_recipients SET status = ?, error_message = ? WHERE twilio_sid = ?`,
+      [newStatus, errorMessage, callbackData],
+      (err) => { if (err) console.error('[DR Webhook] Error updating campaign_recipients:', err); }
+    );
+    db.run(
+      `UPDATE sms_queue SET status = ?, error_message = ? WHERE twilio_sid = ?`,
+      [newStatus, errorMessage, callbackData],
+      (err) => { if (err) console.error('[DR Webhook] Error updating sms_queue:', err); }
+    );
+  } else {
+    // Fallback for messages sent without a correlator: best-effort match by phone number.
+    db.run(
+      `UPDATE campaign_recipients SET status = ?, error_message = ?
+       WHERE id = (SELECT id FROM campaign_recipients WHERE phone = ? AND status != 'failed' ORDER BY id DESC LIMIT 1)`,
+      [newStatus, errorMessage, phone],
+      (err) => { if (err) console.error('[DR Webhook] Error updating campaign_recipients:', err); }
+    );
+    db.run(
+      `UPDATE sms_queue SET status = ?, error_message = ?
+       WHERE id = (SELECT id FROM sms_queue WHERE phone = ? AND status = 'sent' ORDER BY id DESC LIMIT 1)`,
+      [newStatus, errorMessage, phone],
+      (err) => { if (err) console.error('[DR Webhook] Error updating sms_queue:', err); }
+    );
+  }
 
   res.json({ status: 'acknowledged' });
 });
