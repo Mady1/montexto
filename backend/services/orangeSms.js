@@ -95,6 +95,9 @@ function extractErrorMessage(error) {
     (exception && substituteVariables(exception.text, exception.variables)) ||
     data?.error_description || // OAuth2 token errors (invalid_client, invalid_grant, ...)
     data?.error ||
+    // Generic API Gateway errors: {code, message, description} — e.g. 53 "Too many
+    // requests", 60 "Resource not found", 63 "Request time-out", 6 "over capacity"...
+    (data?.description || data?.message) ||
     error.message
   );
 }
