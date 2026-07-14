@@ -1,11 +1,32 @@
 const axios = require('axios');
 
+// Per Orange's getting-started guide, `senderAddress` is NOT the developer's own
+// phone number — it's a fixed per-country technical placeholder used in the URL
+// and body of every request, even when a custom senderName is also set.
+const COUNTRY_SENDER_NUMBERS = {
+  BWA: '+2670000',
+  BFA: '+2260000',
+  CMR: '+2370000',
+  CIV: '+2250000',
+  GIN: '+2240000',
+  GNB: '+2450000',
+  COD: '+2430000',
+  JOR: '+9620000',
+  LBR: '+2310000',
+  MLI: '+2230000',
+  MDG: '+2610000',
+  SEN: '+2210000',
+  TUN: '+2160000',
+};
+
 const envClientId = process.env.ORANGE_CLIENT_ID;
 const envClientSecret = process.env.ORANGE_CLIENT_SECRET;
-const envSenderAddress = process.env.ORANGE_SENDER_ADDRESS; // e.g. +2250700000000
+// Defaults to Mali's country_sender_number; override via ORANGE_SENDER_ADDRESS or
+// a gateway's config.senderAddress if targeting a different country.
+const envSenderAddress = process.env.ORANGE_SENDER_ADDRESS || COUNTRY_SENDER_NUMBERS.MLI;
 const envSenderName = process.env.ORANGE_SENDER_NAME || '';
 
-if (!envClientId || !envClientSecret || !envSenderAddress) {
+if (!envClientId || !envClientSecret) {
   console.warn('Orange SMS credentials not configured. SMS sending will be simulated unless a gateway config provides them.');
 }
 
@@ -159,7 +180,7 @@ async function sendSms({ to, body, config = {} }) {
       },
     };
 
-    await withTokenRetry(clientId, clientSecret, (token) =>
+    const response = await withTokenRetry(clientId, clientSecret, (token) =>
       axios.post(
         `https://api.orange.com/smsmessaging/v1/outbound/${encodeURIComponent(sender)}/requests`,
         payload,
@@ -172,11 +193,12 @@ async function sendSms({ to, body, config = {} }) {
       )
     );
 
-    // The send response only echoes the request (address/senderAddress/message) — Orange's
-    // API never returns a message identifier here, so there is nothing real to use as sid.
-    // Delivery receipts must therefore be correlated by recipient phone number (see routes/inbound.js).
+    // Some Orange SMS products echo a resourceURL (…/requests/{resource_id}) that can be
+    // saved to correlate a delivery receipt; others don't return one at all. Fall back to a
+    // synthetic id so the DR webhook still correlates by recipient phone (see routes/inbound.js).
+    const resourceURL = response.data?.outboundSMSMessageRequest?.resourceURL;
     return {
-      sid: `ORANGE_${Date.now()}`,
+      sid: resourceURL ? resourceURL.split('/').pop() : `ORANGE_${Date.now()}`,
       status: 'sent',
       error: null,
     };

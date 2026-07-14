@@ -78,9 +78,13 @@ function processQueue() {
 
       const defaultSmsGateway = await smsGateway.getDefaultGateway();
       const defaultMailGateway = await mailGateway.getDefaultMailGateway();
-      items.forEach((item) => {
+
+      // Orange's SMS API caps outbound requests at 5/second; pace launches instead of
+      // firing the whole batch concurrently (each send still completes independently).
+      for (const item of items) {
         sendQueuedItem(item, item.channel === 'mail' ? defaultMailGateway : defaultSmsGateway);
-      });
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
     }
   );
 }
