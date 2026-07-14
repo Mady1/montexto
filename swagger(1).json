@@ -1,0 +1,398 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "SMS API RESTful documentation based on Swagger 2.0 specification",
+    "version": "1.0",
+    "title": "Paddock SMS-API documention",
+    "termsOfService": "TBD",
+    "contact": {
+      "name": "Paddock SMS API Support Team",
+      "email": "smsapi.support@orange.com",
+      "url": "https://developer.orange.com/apis/sms/getting-started"
+    }
+  },
+  "basePath": "/",
+  "schemes": [
+    "http"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/smsmessaging/v1/outbound/{senderAddress}/requests": {
+      "post": {
+        "summary": "Send a SMS message",
+        "description": "The POST /smsmessaging/v1/outbound/{senderAddress}/requests URI sends a SMS message to one mobile terminal. This operation is based on GSMA OneAPI SMS RESTful NetAPI",
+        "operationId": "sendSMS",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "senderAddress",
+            "in": "path",
+            "description": "A short code in 'tel:' protocol including the country code. Is the number which will appear as the sender to the SMS receiver and to which a response might be sent. The value in URL parameter should be the same as the body attribute senderAddress, except dans un the URL it should be URL-escaped. You can use a generic value corresponding to the country where the SMS is sent, for example 'tel:+330000' for France or 'tel:+2250000' for Ivory Cost as our platform will ovverride it to fit some other requirements (onnet/offnet sms for instance).",
+            "required": true,
+            "type": "string",
+            "pattern": "tel:\\+\\d*"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Outbound message request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/BodyOutboundSMSMessageRequest"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created. Will return a resourceURl with the messageId (i.e. http://api-base-url/smsmessaging/v1/outbound/{senderAddress}/requests/f42f42e0-2347-42ee-b027-2f882f7fa447)",
+            "schema": {
+              "$ref": "#/definitions/BodyOutboundSMSMessageRequest"
+            }
+          },
+          "400": {
+            "description": "List of error codes:<br/>- SVC0001: A service error occurred<br/>- SVC0002: Invalid input value for message part<br/>- SVC0003: Invalid input value for message part<br/>- SVC0004: No valid addresses provided for message part<br/>- SVC0280: Message too long",
+            "schema": {
+              "$ref": "#/definitions/BodyServiceRequestError"
+            }
+          },
+          "403": {
+            "description": "List of error codes:<br/>- POL0001: A policy error occurred<br/>- POL0003: Too many addresses specified in message part<br/>- POL0007: Nested groups specified in message part not allowed",
+            "schema": {
+              "$ref": "#/definitions/BodyPolicyRequestError"
+            }
+          },
+          "404": {
+            "description": "List of error codes:<br/>- POL0010: Requested information unavailable as the retention time interval has expired",
+            "schema": {
+              "$ref": "#/definitions/BodyPolicyRequestError"
+            }
+          },
+          "406": {
+            "description": "List of error codes:<br/>- POL0011: Media type not supported",
+            "schema": {
+              "$ref": "#/definitions/BodyPolicyRequestError"
+            }
+          },
+          "409": {
+            "description": "List of error codes:<br/>- SVC0005: This would be thrown if the clientCorrelator has already been used (e.g. when creating a previous resource)",
+            "schema": {
+              "$ref": "#/definitions/BodyServiceRequestError"
+            }
+          },
+          "503": {
+            "description": "List of error codes:<br/>- SVC1000: No resources This exception is thrown if there are no server resources available to process the request",
+            "schema": {
+              "$ref": "#/definitions/BodyServiceRequestError"
+            }
+          }
+        }
+      }
+    },
+    "/your/delivery/receipt/path": {
+      "post": {
+        "summary": "Receive a Delivery Receipt notification after sending a SMS",
+        "description": "Our component is able to notify your service on a specific endpoint of the delievery status of the SMS you sent",
+        "operationId": "SMS-DR",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Outbound DR message request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/OutboundDRMessageRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A HTTP status 200 code means that your services has received the notification correctly. All other codes will be ignored, no retries are performed from our side."
+          }
+        }
+      }
+    },
+    "/your/mobile/originated/path": {
+      "post": {
+        "summary": "Receive a Mobile Originated notification after user sends SMS to dedicated short code",
+        "description": "Our component is able to notify your service on a specific endpoint if a user is sending a message to a specific short code you have reserved",
+        "operationId": "SMS-MO",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Inbound MO message request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/InboundSMSMessageRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A HTTP status 200 code means that your services has received the notification correctly. All other codes will be ignored, no retries are performed from our side."
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "InboundSMSMessageRequest": {
+      "required": [
+        "inboundSMSMessageNotification"
+      ],
+      "properties": {
+        "inboundSMSMessageNotification": {
+          "$ref": "#/definitions/InboundSMSMessageNotification"
+        }
+      }
+    },
+    "InboundSMSMessageNotification": {
+      "required": [
+        "callbackData",
+        "inboundSMSMessage"
+      ],
+      "properties": {
+        "callbackData": {
+          "type": "string",
+          "description": "functional usecase or other data given in the POST request to send the SMS; will be returned in the delivery receipt notification."
+        },
+        "inboundSMSMessage": {
+          "$ref": "#/definitions/InboundSMSMessage"
+        }
+      }
+    },
+    "InboundSMSMessage": {
+      "required": [
+        "destinationAddress",
+        "messageId",
+        "message"
+      ],
+      "properties": {
+        "dateTime": {
+          "type": "string",
+          "description": "Message receiving time",
+          "format": "yyyy-mm-dd hh:mn:ss"
+        },
+        "destinationAddress": {
+          "type": "string",
+          "description": "Destination number of Mobile Originated SMS. It’s the short code provided by Orange. International format, prefixed or not with “tel:”, “tel:+”, …"
+        },
+        "messageId": {
+          "type": "string",
+          "description": "Message identifier"
+        },
+        "message": {
+          "type": "string",
+          "description": "Content of the message"
+        },
+        "messageType": {
+          "type": "string",
+          "enum": [
+            "text",
+            "binary"
+          ],
+          "description": "Type of message"
+        },
+        "senderAddress": {
+          "type": "string",
+          "description": "It the MSISDN of the end user. The format starts with “tel:”. It is in international format i.e. starts with “+” followed by country prefix for e.g. “tel:+22507099573”.",
+          "pattern": "tel:\\+\\d*"
+        }
+      }
+    },
+    "OutboundDRMessageRequest": {
+      "required": [
+        "deliveryInfoNotification"
+      ],
+      "properties": {
+        "deliveryInfoNotification": {
+          "$ref": "#/definitions/DeliveryInfoNotification"
+        }
+      }
+    },
+    "DeliveryInfoNotification": {
+      "required": [
+        "callbackData",
+        "deliveryInfo"
+      ],
+      "properties": {
+        "callbackData": {
+          "type": "string",
+          "description": "The callbackdata string you sent in the POST request when you sent the SMS"
+        },
+        "deliveryInfo": {
+          "$ref": "#/definitions/DeliveryInfo"
+        }
+      }
+    },
+    "DeliveryInfo": {
+      "required": [
+        "address",
+        "deliveryStatus"
+      ],
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "destination MSISDN in international format (including country code) in 'tel:+' protocol (i.e. tel:+33612345678 for France)",
+          "pattern": "tel:\\+\\d*",
+          "example": "tel:+33612345678"
+        },
+        "deliveryStatus": {
+          "type": "string",
+          "enum": [
+            "DeliveredToTerminal",
+            "DeliveryUncertain",
+            "DeliveryImpossible",
+            "MessageWaiting",
+            "DeliveredToNetwork",
+            "DeliveryNotificationNotSupported"
+          ],
+          "description": "Delivery status asynchronously sent by the SMSc."
+        }
+      }
+    },
+    "BodyPolicyRequestError": {
+      "required": [
+        "requestError"
+      ],
+      "properties": {
+        "requestError": {
+          "$ref": "#/definitions/PolicyRequestError"
+        }
+      }
+    },
+    "PolicyRequestError": {
+      "required": [
+        "policyException"
+      ],
+      "properties": {
+        "policyException": {
+          "$ref": "#/definitions/Exception"
+        }
+      }
+    },
+    "BodyServiceRequestError": {
+      "required": [
+        "requestError"
+      ],
+      "properties": {
+        "requestError": {
+          "$ref": "#/definitions/ServiceRequestError"
+        }
+      }
+    },
+    "ServiceRequestError": {
+      "required": [
+        "serviceException"
+      ],
+      "properties": {
+        "serviceException": {
+          "$ref": "#/definitions/Exception"
+        }
+      }
+    },
+    "Exception": {
+      "properties": {
+        "messageId": {
+          "type": "string",
+          "description": "identifier of the exception"
+        },
+        "text": {
+          "type": "string",
+          "description": "text which describes the consistently of the exception"
+        },
+        "variables": {
+          "type": "string",
+          "description": "relates to the %1 placeholder(s) in the text property"
+        }
+      }
+    },
+    "BodyOutboundSMSMessageRequest": {
+      "required": [
+        "outboundSMSMessageRequest"
+      ],
+      "properties": {
+        "outboundSMSMessageRequest": {
+          "$ref": "#/definitions/OutboundSMSMessageRequest"
+        }
+      }
+    },
+    "CallbackReference": {
+      "properties": {
+        "callbackData": {
+          "type": "string",
+          "description": "callbackData is sent back as it is in the DR notification"
+        }
+      }
+    },
+    "OutboundSMSMessageRequest": {
+      "required": [
+        "address",
+        "outboundSMSTextMessage",
+        "senderAddress"
+      ],
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "destination MSISDN in international format (including country code) in 'tel:+' protocol (i.e. tel:+33612345678 for France)",
+          "pattern": "tel:\\+\\d*",
+          "example": "tel:+33612345678"
+        },
+        "outboundSMSTextMessage": {
+          "$ref": "#/definitions/OutboundSMSTextMessage"
+        },
+        "senderAddress": {
+          "type": "string",
+          "description": "The MSISDN, including the 'tel:' protocol identifier and the country code prefixed by '+', to whom a responding SMS may be sent. Must be the same as the senderAddress in the URI. This functionnality is not applicable because this parameter is overriden.",
+          "pattern": "tel:\\+\\d*",
+          "example": "tel:+330000"
+        },
+        "clientCorrelator": {
+          "type": "string",
+          "description": "A unique identifier, of maximum 32 characters, you can send when you request the SMS MT. In case of communication failure, you can retry to send the same mesage by using the same clientCorrelator in your request; allows the operator to avoid sending the same SMS twice.",
+          "maxLength": 32
+        },
+        "senderName": {
+          "type": "string",
+          "description": "URL-escaped name of the sender to appear on the terminal as the address to whom a responding SMS may be sent. Can be alphanumeric if configured in the integration phase. In this case responses are not possible"
+        },
+        "receiptRequest": {
+          "$ref": "#/definitions/CallbackReference"
+        }
+      }
+    },
+    "OutboundSMSTextMessage": {
+      "required": [
+        "message"
+      ],
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Content of the SMS."
+        }
+      }
+    }
+  }
+}
