@@ -41,6 +41,24 @@ async function getAccessToken(clientId, clientSecret) {
   return token;
 }
 
+// Per Orange's docs, a call made with an expired Bearer token returns this shape
+// (distinct from the SMS API's own requestError format) — retry once with a fresh token.
+function isExpiredCredentialsError(error) {
+  return error.response?.status === 401 && error.response?.data?.code === 42;
+}
+
+async function withTokenRetry(clientId, clientSecret, makeRequest) {
+  const token = await getAccessToken(clientId, clientSecret);
+  try {
+    return await makeRequest(token);
+  } catch (error) {
+    if (!isExpiredCredentialsError(error)) throw error;
+    tokenCache.delete(clientId);
+    const freshToken = await getAccessToken(clientId, clientSecret);
+    return makeRequest(freshToken);
+  }
+}
+
 // Orange's Exception.text uses %1, %2... placeholders filled in by the parallel
 // Exception.variables array (e.g. "Error code is %1" + ["Expired contract..."]).
 function substituteVariables(text, variables) {
@@ -72,18 +90,19 @@ async function subscribeDeliveryReceipts({ config = {}, notifyUrl }) {
   }
 
   try {
-    const token = await getAccessToken(clientId, clientSecret);
     const sender = toTelFormat(senderAddress);
 
-    const response = await axios.post(
-      `https://api.orange.com/smsmessaging/v1/outbound/${encodeURIComponent(sender)}/subscriptions`,
-      { deliveryReceiptSubscription: { callbackReference: { notifyURL: notifyUrl } } },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
+    const response = await withTokenRetry(clientId, clientSecret, (token) =>
+      axios.post(
+        `https://api.orange.com/smsmessaging/v1/outbound/${encodeURIComponent(sender)}/subscriptions`,
+        { deliveryReceiptSubscription: { callbackReference: { notifyURL: notifyUrl } } },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
     );
 
     return {
@@ -129,7 +148,6 @@ async function sendSms({ to, body, config = {} }) {
   }
 
   try {
-    const token = await getAccessToken(clientId, clientSecret);
     const sender = toTelFormat(senderAddress);
 
     const payload = {
@@ -141,15 +159,17 @@ async function sendSms({ to, body, config = {} }) {
       },
     };
 
-    await axios.post(
-      `https://api.orange.com/smsmessaging/v1/outbound/${encodeURIComponent(sender)}/requests`,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
+    await withTokenRetry(clientId, clientSecret, (token) =>
+      axios.post(
+        `https://api.orange.com/smsmessaging/v1/outbound/${encodeURIComponent(sender)}/requests`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
     );
 
     // The send response only echoes the request (address/senderAddress/message) — Orange's
