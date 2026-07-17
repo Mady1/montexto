@@ -56,7 +56,7 @@ router.post('/', authenticateToken, requirePermission('contacts.edit'), auditLog
   const orgId = req.user.role_name === 'super_admin' ? (organizationId || req.user.organization_id) : req.user.organization_id;
 
   db.run(
-    'INSERT OR IGNORE INTO blacklist (organization_id, phone, reason, source, created_by) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO blacklist (organization_id, phone, reason, source, created_by) VALUES (?, ?, ?, ?, ?) ON CONFLICT (organization_id, phone) DO NOTHING',
     [orgId, phone, reason, 'manual', req.user.id],
     function (err) {
       if (err) return res.status(500).json({ error: 'Database error' });
@@ -79,7 +79,7 @@ router.post('/bulk', authenticateToken, requirePermission('contacts.edit'), (req
   let added = 0;
 
   const stmt = db.prepare(
-    'INSERT OR IGNORE INTO blacklist (organization_id, phone, reason, source, created_by) VALUES (?, ?, ?, ?, ?)'
+    'INSERT INTO blacklist (organization_id, phone, reason, source, created_by) VALUES (?, ?, ?, ?, ?) ON CONFLICT (organization_id, phone) DO NOTHING'
   );
 
   phones.forEach((phone) => {

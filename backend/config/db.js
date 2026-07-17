@@ -1,20 +1,187 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { Pool } = require('pg');
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'data.sqlite');
-
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Error opening database', err);
-  } else {
-    console.log('Connected to SQLite database at', dbPath);
+// Neon's connection string includes channel_binding=require, which node-postgres's
+// SASL/SCRAM implementation doesn't handle (fails with "client password must be a
+// string"). sslmode=require alone already gives us an encrypted, verified
+// connection, so strip channel_binding before handing the string to `pg`.
+function toPoolConnectionString(raw) {
+  if (!raw) return raw;
+  try {
+    const url = new URL(raw);
+    url.searchParams.delete('channel_binding');
+    return url.toString();
+  } catch {
+    return raw;
   }
+}
+
+const pool = new Pool({
+  connectionString: toPoolConnectionString(process.env.DATABASE_URL),
+  max: Number(process.env.PG_POOL_MAX || 3),
+  idleTimeoutMillis: 10000,
 });
 
-db.serialize(() => {
-  // ─── Organizations ───────────────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS organizations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+pool.on('error', (err) => {
+  console.error('Unexpected Postgres pool error', err);
+});
+
+// ─── sqlite3-shaped adapter over `pg` ───────────────────────────────────────
+// Every route/service already does `const db = require('../config/db')` and
+// calls db.run/db.get/db.all/db.serialize/db.prepare with sqlite3's callback
+// API (`?` placeholders, `this.lastID`/`this.changes`). This module keeps
+// that exact shape so none of those call sites need to change — only the
+// handful of genuinely SQLite-specific SQL strings do (datetime(), DATE(),
+// INSERT OR IGNORE, double-quoted string literals), fixed at their call sites.
+
+let activeClient = null; // set while inside db.serialize(), for real transactions
+let activeClientError = null;
+
+function getExecutor() {
+  return activeClient || pool;
+}
+
+function noteError(err) {
+  if (activeClient && !activeClientError) activeClientError = err;
+}
+
+function toPg(sql) {
+  let n = 0;
+  return sql.replace(/\?/g, () => `$${++n}`);
+}
+
+// role_permissions is the one table with no surrogate `id` column (composite
+// PK of role_id + permission_id) — every other table has `id SERIAL PRIMARY KEY`.
+const TABLES_WITHOUT_ID = new Set(['role_permissions']);
+
+function withReturningId(sql) {
+  const match = sql.match(/^\s*insert\s+into\s+(\w+)/i);
+  if (!match) return sql;
+  if (TABLES_WITHOUT_ID.has(match[1].toLowerCase())) return sql;
+  if (/\breturning\b/i.test(sql)) return sql;
+  return `${sql} RETURNING id`;
+}
+
+function buildRunResult(sql, result) {
+  const wantsId = /^\s*insert\b/i.test(sql);
+  return {
+    lastID: wantsId ? result.rows[0]?.id : undefined,
+    changes: result.rowCount,
+  };
+}
+
+const db = {};
+
+db.run = function (sql, params, cb) {
+  if (typeof params === 'function') { cb = params; params = []; }
+  params = params || [];
+  const finalSql = withReturningId(sql);
+  getExecutor()
+    .query(toPg(finalSql), params)
+    .then((result) => { if (cb) cb.call(buildRunResult(sql, result), null); })
+    .catch((err) => {
+      noteError(err);
+      if (cb) cb.call({}, err);
+      else if (!activeClient) console.error('[db.run] unhandled error:', err.message, '\n  SQL:', sql);
+    });
+};
+
+db.get = function (sql, params, cb) {
+  if (typeof params === 'function') { cb = params; params = []; }
+  params = params || [];
+  getExecutor()
+    .query(toPg(sql), params)
+    .then((result) => cb(null, result.rows[0]))
+    .catch((err) => { noteError(err); cb(err); });
+};
+
+db.all = function (sql, params, cb) {
+  if (typeof params === 'function') { cb = params; params = []; }
+  params = params || [];
+  getExecutor()
+    .query(toPg(sql), params)
+    .then((result) => cb(null, result.rows))
+    .catch((err) => { noteError(err); cb(err); });
+};
+
+// Mirrors sqlite3's db.prepare(sql) -> stmt.run(...)/stmt.get(...)/stmt.finalize()
+// bulk pattern. sqlite3 accepts both call styles and this codebase uses both:
+// stmt.run(a, b, c, cb?) (varargs) and stmt.run([a, b, c], cb?) (array) —
+// normalize whichever was passed into a flat params array.
+function normalizeStmtArgs(args) {
+  let cb;
+  if (typeof args[args.length - 1] === 'function') cb = args.pop();
+  const params = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
+  return { params, cb };
+}
+
+db.prepare = function (sql) {
+  const finalSql = withReturningId(sql);
+  return {
+    run(...args) {
+      const { params, cb } = normalizeStmtArgs(args);
+      getExecutor()
+        .query(toPg(finalSql), params)
+        .then((result) => { if (cb) cb.call(buildRunResult(sql, result), null); })
+        .catch((err) => { noteError(err); if (cb) cb.call({}, err); });
+      return this;
+    },
+    get(...args) {
+      const { params, cb } = normalizeStmtArgs(args);
+      getExecutor()
+        .query(toPg(sql), params)
+        .then((result) => cb(null, result.rows[0]))
+        .catch((err) => { noteError(err); cb(err); });
+    },
+    finalize(cb) {
+      if (cb) cb();
+    },
+  };
+};
+
+// Checks out ONE client and routes every db.run/get/all/prepare call issued
+// synchronously inside fn() through it, wrapped in a real BEGIN/COMMIT/
+// ROLLBACK transaction. pg's Client processes queries on a connection in the
+// order .query() was called (a FIFO queue internal to the driver), so a final
+// sentinel query after fn() reliably waits for everything fn() issued to
+// finish before we decide whether to commit or roll back.
+// Fire-and-forget from the caller's side, matching every existing call site
+// (none of them await db.serialize() today). Does not support nesting —
+// confirmed no call site in this codebase nests serialize() blocks.
+db.serialize = function (fn) {
+  const task = (async () => {
+    const client = await pool.connect();
+    const prevClient = activeClient;
+    const prevErr = activeClientError;
+    activeClient = client;
+    activeClientError = null;
+    try {
+      await client.query('BEGIN');
+      fn();
+      await client.query('SELECT 1'); // drains the FIFO queue of queries fn() issued
+      if (activeClientError) throw activeClientError;
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error('[db.serialize] transaction rolled back:', err.message);
+    } finally {
+      activeClient = prevClient;
+      activeClientError = prevErr;
+      client.release();
+    }
+  })();
+  task.catch((err) => console.error('[db.serialize] unexpected error:', err));
+};
+
+db.pool = pool;
+// sqlite3 compatibility: scripts/seed*.js call db.close() when done.
+db.close = function (cb) {
+  pool.end().then(() => cb && cb(null)).catch((err) => cb && cb(err));
+};
+
+// ─── Schema (idempotent — safe to run on every boot) ────────────────────────
+async function initSchema() {
+  await pool.query(`CREATE TABLE IF NOT EXISTS organizations (
+    id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     logo TEXT,
     address TEXT,
@@ -23,30 +190,27 @@ db.serialize(() => {
     type TEXT DEFAULT 'entreprise',
     sms_balance INTEGER DEFAULT 0,
     status TEXT DEFAULT 'active',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT NOW()
   )`);
 
-  // ─── Roles ───────────────────────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS roles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS roles (
+    id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
     display_name TEXT NOT NULL,
     description TEXT,
     is_system INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT NOW()
   )`);
 
-  // ─── Permissions ─────────────────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS permissions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS permissions (
+    id SERIAL PRIMARY KEY,
     code TEXT UNIQUE NOT NULL,
     module TEXT NOT NULL,
     description TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT NOW()
   )`);
 
-  // ─── Role ↔ Permissions (join) ───────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS role_permissions (
+  await pool.query(`CREATE TABLE IF NOT EXISTS role_permissions (
     role_id INTEGER NOT NULL,
     permission_id INTEGER NOT NULL,
     PRIMARY KEY (role_id, permission_id),
@@ -54,9 +218,8 @@ db.serialize(() => {
     FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
   )`);
 
-  // ─── Users (enhanced) ────────────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     first_name TEXT,
@@ -65,15 +228,14 @@ db.serialize(() => {
     organization_id INTEGER,
     role_id INTEGER,
     status TEXT DEFAULT 'active',
-    last_login DATETIME,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL,
     FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL
   )`);
 
-  // ─── Audit logs ──────────────────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS audit_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS audit_logs (
+    id SERIAL PRIMARY KEY,
     user_id INTEGER,
     organization_id INTEGER,
     action TEXT NOT NULL,
@@ -82,92 +244,86 @@ db.serialize(() => {
     details TEXT,
     ip_address TEXT,
     user_agent TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT NOW()
   )`);
 
-  // ─── Login history ───────────────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS login_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS login_history (
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     ip_address TEXT,
     user_agent TEXT,
     success INTEGER DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`);
 
-  // ─── OTP codes ───────────────────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS otp_codes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS otp_codes (
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     code TEXT NOT NULL,
-    expires_at DATETIME NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
     used INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`);
 
-  // ─── Password resets ─────────────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS password_resets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS password_resets (
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     token TEXT UNIQUE NOT NULL,
-    expires_at DATETIME NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
     used INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`);
 
-  // ─── SMS Gateways ────────────────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS sms_gateways (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS sms_gateways (
+    id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     provider TEXT NOT NULL,
     config TEXT,
     is_default INTEGER DEFAULT 0,
     status TEXT DEFAULT 'active',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    channel TEXT DEFAULT 'sms',
+    created_at TIMESTAMPTZ DEFAULT NOW()
   )`);
 
-  // ─── SMS Credit transactions ─────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS sms_credit_transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS sms_credit_transactions (
+    id SERIAL PRIMARY KEY,
     organization_id INTEGER NOT NULL,
     amount INTEGER NOT NULL,
     type TEXT NOT NULL,
     description TEXT,
     balance_after INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
   )`);
 
-  // ─── API keys (org-scoped) ───────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS api_keys (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS api_keys (
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     organization_id INTEGER,
     name TEXT NOT NULL,
     key_value TEXT UNIQUE NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL
   )`);
 
-  // ─── Contact groups (org-scoped) ─────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS contact_groups (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS contact_groups (
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     organization_id INTEGER,
     name TEXT NOT NULL,
     description TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
   )`);
 
-  // ─── Contacts (org-scoped) ───────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS contacts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS contacts (
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     organization_id INTEGER,
     group_id INTEGER,
@@ -176,50 +332,45 @@ db.serialize(() => {
     phone TEXT NOT NULL,
     email TEXT,
     tags TEXT DEFAULT '',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
     FOREIGN KEY (group_id) REFERENCES contact_groups(id) ON DELETE SET NULL
   )`);
-  // Migration for existing databases created before the tags column was added.
-  db.run(`ALTER TABLE contacts ADD COLUMN tags TEXT DEFAULT ''`, () => {});
 
-  // ─── Catalog items (org-scoped) ──────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS catalog_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS catalog_items (
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     organization_id INTEGER,
     name TEXT NOT NULL,
     content TEXT NOT NULL,
     type TEXT DEFAULT 'sms',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
   )`);
 
-  // ─── Campaigns (org-scoped) ──────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS campaigns (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS campaigns (
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     organization_id INTEGER,
     name TEXT NOT NULL,
     message TEXT NOT NULL,
     type TEXT DEFAULT 'sms',
     status TEXT DEFAULT 'draft',
-    scheduled_at DATETIME,
+    scheduled_at TIMESTAMPTZ,
     total_recipients INTEGER DEFAULT 0,
     delivered INTEGER DEFAULT 0,
     failed INTEGER DEFAULT 0,
     pending INTEGER DEFAULT 0,
     cost REAL DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
   )`);
 
-  // ─── Campaign recipients ─────────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS campaign_recipients (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS campaign_recipients (
+    id SERIAL PRIMARY KEY,
     campaign_id INTEGER,
     organization_id INTEGER,
     contact_id INTEGER,
@@ -227,28 +378,26 @@ db.serialize(() => {
     status TEXT DEFAULT 'pending',
     twilio_sid TEXT,
     error_message TEXT,
-    sent_at DATETIME,
+    sent_at TIMESTAMPTZ,
     FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
     FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL
   )`);
 
-  // ─── Recharges (org-scoped) ──────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS recharges (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS recharges (
+    id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     organization_id INTEGER,
     amount REAL NOT NULL,
     payment_method TEXT,
     status TEXT DEFAULT 'success',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
   )`);
 
-  // ─── Notifications ───────────────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS notifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS notifications (
+    id SERIAL PRIMARY KEY,
     user_id INTEGER,
     organization_id INTEGER,
     title TEXT NOT NULL,
@@ -256,14 +405,13 @@ db.serialize(() => {
     type TEXT DEFAULT 'info',
     link TEXT,
     is_read INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
   )`);
 
-  // ─── SMS Queue (async sending with retry) ────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS sms_queue (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS sms_queue (
+    id SERIAL PRIMARY KEY,
     campaign_id INTEGER,
     organization_id INTEGER,
     contact_id INTEGER,
@@ -273,19 +421,20 @@ db.serialize(() => {
     gateway_id INTEGER,
     attempts INTEGER DEFAULT 0,
     max_attempts INTEGER DEFAULT 3,
-    next_retry_at DATETIME,
+    next_retry_at TIMESTAMPTZ,
     error_message TEXT,
     twilio_sid TEXT,
-    queued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    sent_at DATETIME,
+    channel TEXT DEFAULT 'sms',
+    subject TEXT,
+    queued_at TIMESTAMPTZ DEFAULT NOW(),
+    sent_at TIMESTAMPTZ,
     FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
     FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL
   )`);
 
-  // ─── Inbound SMS (replies / webhooks) ────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS inbound_sms (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS inbound_sms (
+    id SERIAL PRIMARY KEY,
     organization_id INTEGER,
     from_phone TEXT NOT NULL,
     to_phone TEXT,
@@ -295,45 +444,30 @@ db.serialize(() => {
     campaign_id INTEGER,
     contact_id INTEGER,
     is_read INTEGER DEFAULT 0,
-    received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    received_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
     FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE SET NULL,
     FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL
   )`);
 
-  // ─── Blacklist / DND ─────────────────────────────────────────────
-  db.run(`CREATE TABLE IF NOT EXISTS blacklist (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+  await pool.query(`CREATE TABLE IF NOT EXISTS blacklist (
+    id SERIAL PRIMARY KEY,
     organization_id INTEGER,
     phone TEXT NOT NULL,
     reason TEXT DEFAULT 'user_request',
     source TEXT DEFAULT 'manual',
     created_by INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
     UNIQUE(organization_id, phone)
   )`);
+}
 
-  // ─── Lightweight migrations for columns added after initial release ──
-  db.all("PRAGMA table_info(api_keys)", [], (err, cols) => {
-    if (!err && !cols.some((c) => c.name === 'last_used_at')) {
-      db.run('ALTER TABLE api_keys ADD COLUMN last_used_at DATETIME');
-    }
-  });
-  db.all("PRAGMA table_info(sms_gateways)", [], (err, cols) => {
-    if (!err && !cols.some((c) => c.name === 'channel')) {
-      db.run("ALTER TABLE sms_gateways ADD COLUMN channel TEXT DEFAULT 'sms'");
-    }
-  });
-  db.all("PRAGMA table_info(sms_queue)", [], (err, cols) => {
-    if (!err && !cols.some((c) => c.name === 'channel')) {
-      db.run("ALTER TABLE sms_queue ADD COLUMN channel TEXT DEFAULT 'sms'");
-    }
-    if (!err && !cols.some((c) => c.name === 'subject')) {
-      db.run('ALTER TABLE sms_queue ADD COLUMN subject TEXT');
-    }
-  });
-});
+const ready = initSchema()
+  .then(() => console.log('Postgres schema ready'))
+  .catch((err) => console.error('Error initializing Postgres schema', err));
+
+db.ready = ready;
 
 module.exports = db;

@@ -112,7 +112,7 @@ router.post(
       [email, hashed, firstName || '', lastName || '', phone || null, orgId, role_id || null],
       function (err) {
         if (err) {
-          if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Email already exists' });
+          if (err.code === '23505') return res.status(409).json({ error: 'Email already exists' });
           return res.status(500).json({ error: 'Database error' });
         }
         res.status(201).json({ id: this.lastID, email, message: 'User created' });

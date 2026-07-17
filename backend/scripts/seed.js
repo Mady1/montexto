@@ -164,7 +164,7 @@ async function seed() {
       const permId = permMap[code];
       if (permId) {
         await run(
-          'INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)',
+          'INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?) ON CONFLICT (role_id, permission_id) DO NOTHING',
           [roleId, permId]
         );
       }

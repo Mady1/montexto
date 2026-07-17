@@ -1,0 +1,28 @@
+name: SMS/mail queue cron
+
+# Vercel's own Cron feature is capped at once/day on the free Hobby plan.
+# The two endpoints below have no such cap themselves — they're guarded by
+# CRON_SECRET, not by which scheduler calls them — so this workflow pings
+# them every 5 minutes instead, standing in for the setInterval loop that
+# used to run inside a persistent Node process (not possible on Vercel's
+# serverless model).
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Process scheduled campaigns
+        run: |
+          curl -sf -X POST "${{ secrets.APP_BASE_URL }}/api/cron/process-scheduled-campaigns" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -o /dev/null -w "process-scheduled-campaigns: %{http_code}\n"
+
+      - name: Process SMS/mail queue
+        run: |
+          curl -sf -X POST "${{ secrets.APP_BASE_URL }}/api/cron/process-queue" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -o /dev/null -w "process-queue: %{http_code}\n"

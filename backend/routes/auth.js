@@ -90,7 +90,7 @@ router.post('/register', (req, res) => {
       [email, hashed, firstName || '', lastName || '', phone || null, orgId, roleId],
       function (err) {
         if (err) {
-          if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Email already exists' });
+          if (err.code === '23505') return res.status(409).json({ error: 'Email already exists' });
           return res.status(500).json({ error: 'Database error' });
         }
         const userId = this.lastID;
@@ -123,11 +123,11 @@ router.post('/login', rateLimit({ windowMs: 60000, max: 5, key: 'login' }), (req
           logLoginAttempt(user.id, ip, userAgent, false);
           // Check failed login count for lockout
           db.get(
-            'SELECT COUNT(*) as failed_count FROM login_history WHERE user_id = ? AND success = 0 AND created_at > datetime("now", "-15 minutes")',
+            "SELECT COUNT(*) as failed_count FROM login_history WHERE user_id = ? AND success = 0 AND created_at > NOW() - INTERVAL '15 minutes'",
             [user.id],
             (err2, result) => {
               if (!err2 && result && result.failed_count >= 5) {
-                db.run('UPDATE users SET status = "locked" WHERE id = ?', [user.id]);
+                db.run("UPDATE users SET status = 'locked' WHERE id = ?", [user.id]);
                 logAudit({ userId: user.id, action: 'auth.account_locked', ipAddress: ip, userAgent });
                 return res.status(423).json({ error: 'Compte verrouillé après 5 tentatives échouées. Contactez votre administrateur.' });
               }
@@ -148,7 +148,7 @@ router.post('/login', rateLimit({ windowMs: 60000, max: 5, key: 'login' }), (req
       // If OTP is enabled, check for valid OTP
       if (otp) {
         db.get(
-          'SELECT * FROM otp_codes WHERE user_id = ? AND code = ? AND used = 0 AND expires_at > datetime("now") ORDER BY id DESC LIMIT 1',
+          'SELECT * FROM otp_codes WHERE user_id = ? AND code = ? AND used = 0 AND expires_at > NOW() ORDER BY id DESC LIMIT 1',
           [user.id, otp],
           (err, otpRecord) => {
             if (err || !otpRecord) {
@@ -167,7 +167,7 @@ router.post('/login', rateLimit({ windowMs: 60000, max: 5, key: 'login' }), (req
 
   function issueToken(user, ip, userAgent) {
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-    db.run('UPDATE users SET last_login = datetime("now") WHERE id = ?', [user.id]);
+    db.run('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
     logLoginAttempt(user.id, ip, userAgent, true);
     logAudit({ userId: user.id, organizationId: user.organization_id, action: 'auth.login', ipAddress: ip, userAgent });
     res.json({
@@ -190,7 +190,7 @@ router.post('/login', rateLimit({ windowMs: 60000, max: 5, key: 'login' }), (req
 // Request OTP
 router.post('/otp/request', rateLimit({ windowMs: 60000, max: 10, key: 'otp' }), (req, res) => {
   const { email } = req.body;
-  db.get('SELECT id FROM users WHERE email = ? AND status = "active"', [email], (err, user) => {
+  db.get("SELECT id FROM users WHERE email = ? AND status = 'active'", [email], (err, user) => {
     if (err || !user) return res.status(404).json({ error: 'User not found' });
 
     const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -213,11 +213,11 @@ router.post('/otp/verify', (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required' });
 
-  db.get('SELECT * FROM users WHERE email = ? AND status = "active"', [email], (err, user) => {
+  db.get("SELECT * FROM users WHERE email = ? AND status = 'active'", [email], (err, user) => {
     if (err || !user) return res.status(404).json({ error: 'User not found' });
 
     db.get(
-      'SELECT * FROM otp_codes WHERE user_id = ? AND code = ? AND used = 0 AND expires_at > datetime("now") ORDER BY id DESC LIMIT 1',
+      'SELECT * FROM otp_codes WHERE user_id = ? AND code = ? AND used = 0 AND expires_at > NOW() ORDER BY id DESC LIMIT 1',
       [user.id, otp],
       (err, otpRecord) => {
         if (err || !otpRecord) {
@@ -225,7 +225,7 @@ router.post('/otp/verify', (req, res) => {
         }
         db.run('UPDATE otp_codes SET used = 1 WHERE id = ?', [otpRecord.id]);
         const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-        db.run('UPDATE users SET last_login = datetime("now") WHERE id = ?', [user.id]);
+        db.run('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
         logLoginAttempt(user.id, req.ip, req.get('User-Agent'), true);
         logAudit({ userId: user.id, organizationId: user.organization_id, action: 'auth.login_otp', ipAddress: req.ip, userAgent: req.get('User-Agent') });
         res.json({
@@ -276,7 +276,7 @@ router.post('/password/reset-confirm', (req, res) => {
   if (!token || !newPassword) return res.status(400).json({ error: 'Token and new password required' });
 
   db.get(
-    'SELECT * FROM password_resets WHERE token = ? AND used = 0 AND expires_at > datetime("now")',
+    'SELECT * FROM password_resets WHERE token = ? AND used = 0 AND expires_at > NOW()',
     [token],
     (err, reset) => {
       if (err || !reset) return res.status(401).json({ error: 'Invalid or expired token' });

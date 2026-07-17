@@ -51,7 +51,7 @@ router.post(
       [name, display_name, description || null],
       function (err) {
         if (err) {
-          if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Role name already exists' });
+          if (err.code === '23505') return res.status(409).json({ error: 'Role name already exists' });
           return res.status(500).json({ error: 'Database error' });
         }
         res.status(201).json({ id: this.lastID, name, message: 'Role created' });

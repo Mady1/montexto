@@ -47,7 +47,7 @@ router.post('/inbound', (req, res) => {
           const upperMessage = message.toUpperCase().trim();
           if (optOutKeywords.some((kw) => upperMessage.includes(kw)) && orgId) {
             db.run(
-              'INSERT OR IGNORE INTO blacklist (organization_id, phone, reason, source) VALUES (?, ?, ?, ?)',
+              'INSERT INTO blacklist (organization_id, phone, reason, source) VALUES (?, ?, ?, ?) ON CONFLICT (organization_id, phone) DO NOTHING',
               [orgId, fromPhone, 'opt_out_sms', 'inbound'],
               () => {
                 console.log(`[Inbound SMS] ${fromPhone} opted out (blacklisted)`);

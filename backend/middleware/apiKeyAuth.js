@@ -28,7 +28,7 @@ function authenticateApiKey(req, res, next) {
 
     req.user = user;
     req.apiKeyId = user.api_key_id;
-    db.run('UPDATE api_keys SET last_used_at = datetime(\'now\') WHERE id = ?', [user.api_key_id]);
+    db.run('UPDATE api_keys SET last_used_at = NOW() WHERE id = ?', [user.api_key_id]);
     next();
   });
 }

@@ -32,36 +32,6 @@ function getAll(sql, params = []) {
 async function seedTestData() {
   console.log('=== Insertion des donnees de test ===\n');
 
-  // ─── Migration: assurer le schéma campaign_recipients ──────────
-  const columns = await getAll('PRAGMA table_info(campaign_recipients)');
-  const hasOrgId = columns.some(c => c.name === 'organization_id');
-  if (!hasOrgId) {
-    console.log('Migration: ajout organization_id a campaign_recipients...');
-    await run('ALTER TABLE campaign_recipients ADD COLUMN organization_id INTEGER');
-  }
-  const hasCampaignIdNullable = columns.find(c => c.name === 'campaign_id');
-  if (hasCampaignIdNullable && hasCampaignIdNullable.notnull === 1) {
-    // SQLite ne supporte pas ALTER COLUMN, on recree la table
-    console.log('Migration: recreation campaign_recipients pour campaign_id nullable...');
-    await run('ALTER TABLE campaign_recipients RENAME TO campaign_recipients_old');
-    await run(`CREATE TABLE campaign_recipients (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      campaign_id INTEGER,
-      organization_id INTEGER,
-      contact_id INTEGER,
-      phone TEXT NOT NULL,
-      status TEXT DEFAULT 'pending',
-      twilio_sid TEXT,
-      error_message TEXT,
-      sent_at DATETIME,
-      FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
-      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
-      FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL
-    )`);
-    await run('INSERT INTO campaign_recipients (campaign_id, contact_id, phone, status, twilio_sid, error_message, sent_at) SELECT campaign_id, contact_id, phone, status, twilio_sid, error_message, sent_at FROM campaign_recipients_old');
-    await run('DROP TABLE campaign_recipients_old');
-  }
-
   // ─── Recuperer les IDs existants ───────────────────────────────
   const roles = await getAll('SELECT id, name FROM roles');
   const roleMap = {};

@@ -12,7 +12,7 @@ router.get('/dashboard', authenticateToken, (req, res) => {
   
   let dateFilter = '';
   if (startDate && endDate) {
-    dateFilter = ' AND DATE(created_at) BETWEEN DATE(?) AND DATE(?)';
+    dateFilter = ' AND created_at::date BETWEEN ?::date AND ?::date';
   }
   const dateParams = (startDate && endDate) ? [startDate, endDate] : [];
 
@@ -47,9 +47,9 @@ router.get('/dashboard', authenticateToken, (req, res) => {
                 (err3, contacts) => {
                   if (err3) return res.status(500).json({ error: err3.message });
                   db.all(
-                    `SELECT DATE(created_at) as date, SUM(total_recipients) as count
+                    `SELECT created_at::date as date, SUM(total_recipients) as count
                      FROM campaigns WHERE ${scopeCol} ${dateFilter}
-                     GROUP BY DATE(created_at) ORDER BY DATE(created_at)`,
+                     GROUP BY created_at::date ORDER BY created_at::date`,
                     [...scopeParams, ...dateParams],
                     (err4, chart) => {
                       if (err4) return res.status(500).json({ error: err4.message });
