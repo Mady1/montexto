@@ -22,7 +22,7 @@ router.get('/demo-users', (req, res) => {
      LEFT JOIN organizations o ON o.id = u.organization_id
      WHERE u.status = 'active'
      ORDER BY u.id ASC
-     LIMIT 10`,
+     LIMIT 20`,
     [],
     (err, rows) => {
       if (err) return res.status(500).json({ error: 'Database error' });
@@ -48,6 +48,7 @@ router.get('/demo-users', (req, res) => {
         'admin.orange@montexto.com': 'orange123',
         'op.sifca@montexto.com': 'sifca123',
         'mohamed.wague2453@gmail.com': 'admin123',
+        'libre@montexto.com': 'libre123',
       };
       users.forEach((u) => {
         u.password = passwordMap[u.email] || 'demo123';
