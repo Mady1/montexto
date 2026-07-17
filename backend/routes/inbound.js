@@ -253,7 +253,7 @@ router.get('/inbox/stats', authenticateToken, (req, res) => {
   db.all(
     `SELECT
        COUNT(*) as total,
-       SUM(CASE WHEN is_read = 0 THEN 1 ELSE 0 END) as unread,
+       COALESCE(SUM(CASE WHEN is_read = 0 THEN 1 ELSE 0 END), 0) as unread,
        COUNT(DISTINCT from_phone) as unique_senders
      FROM inbound_sms ${where}`,
     params,

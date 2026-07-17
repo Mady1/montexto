@@ -15,7 +15,8 @@ router.post('/send', requirePermission('sms.send'), auditLog('sms.send'), async 
   if (!to || !message) return res.status(400).json({ error: 'Phone and message required' });
 
   try {
-    const result = await smsSender.sendSingleSms({ organizationId: req.user.organization_id, to, message });
+    const isSuperAdmin = req.user.role_name === 'super_admin';
+    const result = await smsSender.sendSingleSms({ organizationId: req.user.organization_id, to, message, skipCreditCheck: isSuperAdmin });
     res.status(201).json(result);
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
@@ -30,7 +31,8 @@ router.post('/send-bulk', requirePermission('sms.send_bulk'), auditLog('sms.send
   }
 
   try {
-    const result = await smsSender.sendBulkSms({ organizationId: req.user.organization_id, phones, message });
+    const isSuperAdmin = req.user.role_name === 'super_admin';
+    const result = await smsSender.sendBulkSms({ organizationId: req.user.organization_id, phones, message, skipCreditCheck: isSuperAdmin });
     res.status(201).json(result);
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });

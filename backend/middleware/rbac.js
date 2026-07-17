@@ -68,6 +68,10 @@ function requirePermission(...codes) {
       return res.status(403).json({ error: 'No role assigned' });
     }
 
+    if (req.user.role_name === 'super_admin') {
+      return next();
+    }
+
     try {
       const permissions = await getRolePermissions(req.user.role_id);
       const hasAll = codes.every((code) => permissions.includes(code));
@@ -89,6 +93,10 @@ function requireAnyPermission(...codes) {
   return async (req, res, next) => {
     if (!req.user || !req.user.role_id) {
       return res.status(403).json({ error: 'No role assigned' });
+    }
+
+    if (req.user.role_name === 'super_admin') {
+      return next();
     }
 
     try {

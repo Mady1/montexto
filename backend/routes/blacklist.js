@@ -127,9 +127,9 @@ router.get('/stats', authenticateToken, (req, res) => {
   db.all(
     `SELECT
        COUNT(*) as total,
-       SUM(CASE WHEN reason = 'opt_out_sms' THEN 1 ELSE 0 END) as opt_outs,
-       SUM(CASE WHEN reason = 'manual' THEN 1 ELSE 0 END) as manual,
-       SUM(CASE WHEN source = 'inbound' THEN 1 ELSE 0 END) as from_inbound
+       COALESCE(SUM(CASE WHEN reason = 'opt_out_sms' THEN 1 ELSE 0 END), 0) as opt_outs,
+       COALESCE(SUM(CASE WHEN reason = 'manual' THEN 1 ELSE 0 END), 0) as manual,
+       COALESCE(SUM(CASE WHEN source = 'inbound' THEN 1 ELSE 0 END), 0) as from_inbound
      FROM blacklist ${where}`,
     params,
     (err, rows) => {

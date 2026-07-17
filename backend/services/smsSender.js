@@ -27,8 +27,8 @@ function isBlacklisted(organizationId, phone) {
   });
 }
 
-async function sendSingleSms({ organizationId, to, message }) {
-  if (organizationId) {
+async function sendSingleSms({ organizationId, to, message, skipCreditCheck = false }) {
+  if (organizationId && !skipCreditCheck) {
     const org = await getOrgBalance(organizationId);
     if (!org) throw httpError('Organization not found', 500);
     if (org.sms_balance <= 0) throw httpError('Insufficient SMS credits', 403);
@@ -58,9 +58,9 @@ async function sendSingleSms({ organizationId, to, message }) {
   return { id, to, message, status: smsResult.status, sid: smsResult.sid, error: smsResult.error };
 }
 
-async function sendBulkSms({ organizationId, phones, message }) {
+async function sendBulkSms({ organizationId, phones, message, skipCreditCheck = false }) {
   const blacklisted = new Set();
-  if (organizationId) {
+  if (organizationId && !skipCreditCheck) {
     const org = await getOrgBalance(organizationId);
     if (!org) throw httpError('Organization not found', 500);
     if (org.sms_balance < phones.length) {

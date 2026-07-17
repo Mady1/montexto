@@ -7,6 +7,7 @@ const { authenticateToken, JWT_SECRET } = require('../middleware/auth');
 const { logAudit } = require('../middleware/audit');
 const { logLoginAttempt } = require('../middleware/audit');
 const { rateLimit } = require('../middleware/rateLimit');
+const { getRolePermissions } = require('../middleware/rbac');
 
 const router = express.Router();
 
@@ -46,6 +47,7 @@ router.get('/demo-users', (req, res) => {
         'com.banco@montexto.com': 'bcom123',
         'admin.orange@montexto.com': 'orange123',
         'op.sifca@montexto.com': 'sifca123',
+        'mohamed.wague2453@gmail.com': 'admin123',
       };
       users.forEach((u) => {
         u.password = passwordMap[u.email] || 'demo123';
@@ -314,9 +316,14 @@ router.get('/me', authenticateToken, (req, res) => {
      LEFT JOIN roles r ON r.id = u.role_id
      WHERE u.id = ?`,
     [req.user.id],
-    (err, user) => {
+    async (err, user) => {
       if (err || !user) return res.status(404).json({ error: 'User not found' });
-      res.json(user);
+      try {
+        const permissions = user.role_id ? await getRolePermissions(user.role_id) : [];
+        res.json({ ...user, permissions });
+      } catch {
+        res.json(user);
+      }
     }
   );
 });

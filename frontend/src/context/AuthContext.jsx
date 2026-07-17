@@ -20,6 +20,7 @@ function normalizeUser(data) {
     roleDisplayName: data.role_display_name || data.roleDisplayName || null,
     lastLogin: data.last_login || data.lastLogin || null,
     createdAt: data.created_at || data.createdAt || null,
+    _permissions: data.permissions || [],
   }
 }
 
