@@ -42,7 +42,7 @@ function getAdminMenuItems(t) {
     { to: '/users', icon: Shield, label: t('sidebar.nav.users'), color: 'text-gem-purple', bg: 'bg-gem-purple/10', roles: ['super_admin', 'org_admin'] },
     { to: '/roles', icon: KeyRound, label: t('sidebar.nav.roles'), color: 'text-gem-amber', bg: 'bg-gem-amber/10', roles: ['super_admin'] },
     { to: '/audit', icon: ScrollText, label: t('sidebar.nav.audit'), color: 'text-gem-pink', bg: 'bg-gem-pink/10', roles: ['super_admin', 'auditor'] },
-    { to: '/gateways', icon: Server, label: t('sidebar.nav.gateways'), color: 'text-gem-teal', bg: 'bg-gem-teal/10', roles: ['super_admin'] },
+    { to: '/gateways', icon: Server, label: t('sidebar.nav.gateways'), color: 'text-gem-teal', bg: 'bg-gem-teal/10', roles: ['super_admin', 'org_admin'] },
   ]
 }
 

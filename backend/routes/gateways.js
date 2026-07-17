@@ -12,7 +12,7 @@ router.use(authenticateToken);
 
 // Test a gateway's credentials (and optionally send a real test SMS/email),
 // without requiring it to be saved first — lets the UI validate a draft config.
-router.post('/test', requirePermission('admin.gateways'), async (req, res) => {
+router.post('/test', async (req, res) => {
   const { provider, config, testPhone, testEmail } = req.body;
   if (!provider || !config) return res.status(400).json({ error: 'provider et config requis' });
 
@@ -26,12 +26,12 @@ router.post('/test', requirePermission('admin.gateways'), async (req, res) => {
   }
 });
 
-// List all gateways
+// List all gateways (super_admin: all, org_admin: own org + global)
 router.get('/', (req, res) => {
   const isSuperAdmin = req.user.role_name === 'super_admin';
   const where = isSuperAdmin ? '' : 'WHERE organization_id = ? OR organization_id IS NULL';
   const params = isSuperAdmin ? [] : [req.user.organization_id];
-  db.all(`SELECT * FROM sms_gateways ${where} ORDER BY is_default DESC, created_at ASC`, params, (err, rows) => {
+  db.all(`SELECT g.*, o.name as organization_name FROM sms_gateways g LEFT JOIN organizations o ON o.id = g.organization_id ${where} ORDER BY g.is_default DESC, g.created_at ASC`, params, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ data: rows });
   });
@@ -45,8 +45,8 @@ router.get('/:id', (req, res) => {
   });
 });
 
-// Create gateway
-router.post('/', requirePermission('admin.gateways'), auditLog('gateway.create'), (req, res) => {
+// Create gateway (super_admin or org_admin for their org)
+router.post('/', auditLog('gateway.create'), (req, res) => {
   const { name, provider, config, isDefault, channel = 'sms' } = req.body;
   if (!name || !provider) return res.status(400).json({ error: 'Name and provider required' });
 
@@ -68,11 +68,16 @@ router.post('/', requirePermission('admin.gateways'), auditLog('gateway.create')
 });
 
 // Update gateway
-router.put('/:id', requirePermission('admin.gateways'), auditLog('gateway.update'), (req, res) => {
+router.put('/:id', auditLog('gateway.update'), (req, res) => {
   const { name, provider, config, isDefault, status, channel } = req.body;
 
   db.get('SELECT * FROM sms_gateways WHERE id = ?', [req.params.id], (err, gateway) => {
     if (err || !gateway) return res.status(404).json({ error: 'Gateway not found' });
+
+    // org_admin can only edit their own org's gateways
+    if (req.user.role_name !== 'super_admin' && gateway.organization_id !== req.user.organization_id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
     const effectiveChannel = channel || gateway.channel || 'sms';
 
@@ -103,10 +108,15 @@ router.put('/:id', requirePermission('admin.gateways'), auditLog('gateway.update
 });
 
 // Delete gateway
-router.delete('/:id', requirePermission('admin.gateways'), auditLog('gateway.delete'), (req, res) => {
+router.delete('/:id', auditLog('gateway.delete'), (req, res) => {
   db.get('SELECT * FROM sms_gateways WHERE id = ?', [req.params.id], (err, gateway) => {
     if (err || !gateway) return res.status(404).json({ error: 'Gateway not found' });
     if (gateway.is_default) return res.status(400).json({ error: 'Cannot delete the default gateway' });
+
+    // org_admin can only delete their own org's gateways
+    if (req.user.role_name !== 'super_admin' && gateway.organization_id !== req.user.organization_id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
     db.run('DELETE FROM sms_gateways WHERE id = ?', [gateway.id], (err2) => {
       if (err2) return res.status(500).json({ error: err2.message });
@@ -117,7 +127,7 @@ router.delete('/:id', requirePermission('admin.gateways'), auditLog('gateway.del
 
 // Set default gateway (scoped to its own channel, so an SMS default and a
 // mail default can coexist)
-router.patch('/:id/default', requirePermission('admin.gateways'), auditLog('gateway.set_default'), (req, res) => {
+router.patch('/:id/default', auditLog('gateway.set_default'), (req, res) => {
   db.get('SELECT channel FROM sms_gateways WHERE id = ?', [req.params.id], (err, gateway) => {
     if (err || !gateway) return res.status(404).json({ error: 'Gateway not found' });
 

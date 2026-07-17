@@ -18,12 +18,14 @@ const providerGradients = {
 const channelForProvider = (provider) => (provider === 'smtp' ? 'mail' : 'sms')
 
 export default function Gateways() {
-  const { hasRole } = useAuth()
+  const { hasRole, user } = useAuth()
+  const isSuperAdmin = hasRole('super_admin')
   const [gateways, setGateways] = useState([])
+  const [organizations, setOrganizations] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ name: '', provider: 'twilio', config: {}, isDefault: false, status: 'active', channel: 'sms' })
+  const [form, setForm] = useState({ name: '', provider: 'twilio', config: {}, isDefault: false, status: 'active', channel: 'sms', organizationId: null })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showSecret, setShowSecret] = useState(false)
@@ -62,6 +64,7 @@ export default function Gateways() {
 
   useEffect(() => {
     fetchGateways()
+    if (isSuperAdmin) fetchOrganizations()
   }, [])
 
   const fetchGateways = async () => {
@@ -75,9 +78,18 @@ export default function Gateways() {
     }
   }
 
+  const fetchOrganizations = async () => {
+    try {
+      const res = await api.get('/organizations')
+      setOrganizations(res.data.data || [])
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', provider: 'twilio', config: {}, isDefault: false, status: 'active', channel: 'sms' })
+    setForm({ name: '', provider: 'twilio', config: {}, isDefault: false, status: 'active', channel: 'sms', organizationId: isSuperAdmin ? null : user?.organizationId })
     setError('')
     setTestPhone('')
     setTestEmail('')
@@ -104,6 +116,7 @@ export default function Gateways() {
       isDefault: !!g.is_default,
       status: g.status,
       channel: g.channel || channelForProvider(g.provider),
+      organizationId: g.organization_id,
     })
     setError('')
     setTestPhone('')
@@ -120,7 +133,7 @@ export default function Gateways() {
       if (editing) {
         await api.put(`/gateways/${editing.id}`, form)
       } else {
-        await api.post('/gateways', form)
+        await api.post('/gateways', { ...form, organizationId: form.organizationId })
       }
       setShowModal(false)
       fetchGateways()
@@ -150,10 +163,10 @@ export default function Gateways() {
     }
   }
 
-  if (!hasRole('super_admin')) {
+  if (!hasRole('super_admin', 'org_admin')) {
     return (
       <div className="gem-card p-12 text-center">
-        <p className="text-gray-500">Accès réservé aux super administrateurs</p>
+        <p className="text-gray-500">Accès réservé aux administrateurs</p>
       </div>
     )
   }
@@ -210,8 +223,14 @@ export default function Gateways() {
                 </div>
               </div>
               <h3 className="font-semibold text-gray-800 mb-1">{g.name}</h3>
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded uppercase">{g.provider}</span>
+                {g.organization_name && (
+                  <span className="text-xs font-medium text-brand-600 bg-brand-50 px-2 py-0.5 rounded">{g.organization_name}</span>
+                )}
+                {!g.organization_id && (
+                  <span className="text-xs font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded">Global</span>
+                )}
                 <span className={`gem-badge ${g.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
                   <span className={`w-1.5 h-1.5 ${g.status === 'active' ? 'bg-green-500' : 'bg-red-500'} rounded-full`}></span>
                   {g.status === 'active' ? 'Actif' : 'Inactif'}
@@ -248,6 +267,22 @@ export default function Gateways() {
                 required
               />
             </div>
+            {isSuperAdmin && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Organisation</label>
+                <select
+                  value={form.organizationId || ''}
+                  onChange={(e) => setForm({ ...form, organizationId: e.target.value || null })}
+                  className="gem-input w-full"
+                >
+                  <option value="">Global (toutes organisations)</option>
+                  {organizations.map((o) => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Le senderName de cette organisation sera utilisé pour ses envois</p>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">Fournisseur</label>
               <select
@@ -306,14 +341,17 @@ export default function Gateways() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Nom expéditeur <span className="text-gray-400">(optionnel)</span></label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Nom expéditeur <span className="text-gray-400">(senderName)</span></label>
                   <input
                     type="text"
                     value={form.config.senderName || ''}
                     onChange={(e) => updateConfig('senderName', e.target.value)}
                     className="gem-input w-full"
-                    placeholder="Montexto"
+                    placeholder="ex: LIBRE, MONTXTO"
                   />
+                  <p className="text-xs text-amber-600 mt-1 bg-amber-50 px-2 py-1 rounded">
+                    ⚠ Ce nom doit être whitelisté par Orange Mali. Contactez votre chargé de compte Orange pour l'autoriser avant de l'utiliser.
+                  </p>
                 </div>
               </div>
             ) : form.provider === 'twilio' ? (
