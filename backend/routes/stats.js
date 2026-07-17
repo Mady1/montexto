@@ -61,8 +61,8 @@ router.get('/dashboard', authenticateToken, (req, res) => {
     ${dateFilter.replace('created_at', 'cr.sent_at')}
     GROUP BY cr.sent_at::date ORDER BY cr.sent_at::date`;
 
-  // Recharges
-  const rechargeDateFilter = dateFilter.replace('created_at', 'r.created_at').replace(/\$(\d+)/g, (m, n) => `$${Number(n) + (isSuperAdmin ? 0 : 1)}`);
+  // Recharges — dateFilter already accounts for paramOffset, no extra shift needed
+  const rechargeDateFilter = dateFilter.replace('created_at', 'r.created_at');
   const rechargeScopeWhere = isSuperAdmin ? '1=1' : 'r.organization_id = $1';
   const rechargeSql = `SELECT r.* FROM recharges r WHERE ${rechargeScopeWhere} ${rechargeDateFilter} ORDER BY r.created_at DESC LIMIT 10`;
   const rechargeParams = isSuperAdmin ? [...dateParams] : [orgId, ...dateParams];
