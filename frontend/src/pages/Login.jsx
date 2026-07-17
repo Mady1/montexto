@@ -40,21 +40,19 @@ export default function Login() {
     setLoading(true)
     setError('')
     try {
-      // Request OTP first
-      const otpRes = await api.post('/auth/otp/request', { email })
-      if (otpRes.data.devCode) {
-        setOtpDevCode(otpRes.data.devCode)
-      }
-      setOtpStep(true)
-      setTimeout(() => otpRefs.current[0]?.focus(), 100)
+      const res = await api.post('/auth/login', { email, password })
+      login(res.data.token, res.data.user)
+      navigate('/')
     } catch (err) {
-      // If OTP request fails, try direct login (user may not exist or OTP not required)
-      try {
-        const res = await api.post('/auth/login', { email, password })
-        login(res.data.token, res.data.user)
-        navigate('/')
-      } catch (err2) {
-        setError(err2.response?.data?.error || t('login.connectionError'))
+      if (err.response?.status === 202 || err.response?.data?.otpRequired) {
+        const otpRes = await api.post('/auth/otp/request', { email })
+        if (otpRes.data.devCode) {
+          setOtpDevCode(otpRes.data.devCode)
+        }
+        setOtpStep(true)
+        setTimeout(() => otpRefs.current[0]?.focus(), 100)
+      } else {
+        setError(err.response?.data?.error || t('login.connectionError'))
       }
     } finally {
       setLoading(false)
