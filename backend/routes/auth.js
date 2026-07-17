@@ -168,11 +168,12 @@ router.post('/login', rateLimit({ windowMs: 60000, max: 5, key: 'login' }), (req
     }
   );
 
-  function issueToken(user, ip, userAgent) {
+  async function issueToken(user, ip, userAgent) {
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
     db.run('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
     logLoginAttempt(user.id, ip, userAgent, true);
     logAudit({ userId: user.id, organizationId: user.organization_id, action: 'auth.login', ipAddress: ip, userAgent });
+    const permissions = user.role_id ? await getRolePermissions(user.role_id) : [];
     res.json({
       token,
       user: {
@@ -185,6 +186,7 @@ router.post('/login', rateLimit({ windowMs: 60000, max: 5, key: 'login' }), (req
         role_id: user.role_id,
         role_name: user.role_name,
         role_display_name: user.role_display_name,
+        permissions,
       },
     });
   }

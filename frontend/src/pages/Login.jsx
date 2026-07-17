@@ -29,7 +29,7 @@ export default function Login() {
   const [otpDevCode, setOtpDevCode] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
   const otpRefs = useRef([])
-  const { login } = useAuth()
+  const { login, refreshUser } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -45,6 +45,9 @@ export default function Login() {
     try {
       const res = await api.post('/auth/login', { email, password })
       login(res.data.token, res.data.user)
+      if (!res.data.user?.permissions?.length) {
+        await refreshUser()
+      }
       navigate('/')
     } catch (err) {
       if (err.response?.status === 202 || err.response?.data?.otpRequired) {
@@ -102,6 +105,9 @@ export default function Login() {
     try {
       const res = await api.post('/auth/login', { email, password, otp: code })
       login(res.data.token, res.data.user)
+      if (!res.data.user?.permissions?.length) {
+        await refreshUser()
+      }
       navigate('/')
     } catch (err) {
       setError(err.response?.data?.error || t('login.otpInvalid'))
