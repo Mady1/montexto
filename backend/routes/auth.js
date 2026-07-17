@@ -201,8 +201,10 @@ router.post('/otp/request', rateLimit({ windowMs: 60000, max: 10, key: 'otp' }),
       [user.id, code, expiresAt],
       (err) => {
         if (err) return res.status(500).json({ error: 'Database error' });
-        // In production, send via SMS/email. For dev, return the code.
-        res.json({ message: 'OTP sent', devCode: process.env.NODE_ENV !== 'production' ? code : undefined });
+        // No mailer wired up yet to actually deliver the code — surface it in the
+        // response so the login screen can show it directly. Once SMTP_HOST is set,
+        // this stops being returned (the real mailer is expected to deliver it instead).
+        res.json({ message: 'OTP sent', devCode: process.env.SMTP_HOST ? undefined : code });
       }
     );
   });
@@ -260,10 +262,12 @@ router.post('/password/reset-request', rateLimit({ windowMs: 60000, max: 3, key:
       (err) => {
         if (err) return res.status(500).json({ error: 'Database error' });
         logAudit({ userId: user.id, action: 'auth.password_reset_request', ipAddress: req.ip, userAgent: req.get('User-Agent') });
-        // In production, send email with reset link. For dev, return token.
+        // No mailer wired up yet to actually deliver the reset link — surface the
+        // token in the response so ForgotPassword can show it directly. Once
+        // SMTP_HOST is set, this stops being returned (email delivers it instead).
         res.json({
           message: 'If the email exists, a reset link has been sent',
-          devToken: process.env.NODE_ENV !== 'production' ? token : undefined,
+          devToken: process.env.SMTP_HOST ? undefined : token,
         });
       }
     );
