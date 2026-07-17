@@ -285,8 +285,12 @@ async function initSchema() {
     is_default INTEGER DEFAULT 0,
     status TEXT DEFAULT 'active',
     channel TEXT DEFAULT 'sms',
+    organization_id INTEGER,
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`);
+
+  // Add organization_id column to existing sms_gateways table (idempotent)
+  await pool.query(`ALTER TABLE sms_gateways ADD COLUMN IF NOT EXISTS organization_id INTEGER`).catch(() => {});
 
   await pool.query(`CREATE TABLE IF NOT EXISTS sms_credit_transactions (
     id SERIAL PRIMARY KEY,

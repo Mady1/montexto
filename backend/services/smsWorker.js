@@ -87,14 +87,26 @@ async function processQueue() {
   );
   if (!items.length) return { processed: 0 };
 
-  const defaultSmsGateway = await smsGateway.getDefaultGateway();
-  const defaultMailGateway = await mailGateway.getDefaultMailGateway();
+  // Group items by organization_id so we can resolve the correct per-org gateway
+  const orgIds = [...new Set(items.map(i => i.organization_id).filter(Boolean))];
+  const smsGatewayCache = {};
+  const mailGatewayCache = {};
+  for (const orgId of orgIds) {
+    smsGatewayCache[orgId] = await smsGateway.getDefaultGateway(orgId);
+    mailGatewayCache[orgId] = await mailGateway.getDefaultMailGateway(orgId);
+  }
+  const globalSmsGateway = await smsGateway.getDefaultGateway();
+  const globalMailGateway = await mailGateway.getDefaultMailGateway();
 
   // Orange's SMS API caps outbound requests at 5/second; pace launches instead of
   // firing the whole batch concurrently (each send still completes independently).
   const sends = [];
   for (const item of items) {
-    sends.push(sendQueuedItem(item, item.channel === 'mail' ? defaultMailGateway : defaultSmsGateway));
+    const orgId = item.organization_id;
+    const gw = item.channel === 'mail'
+      ? (mailGatewayCache[orgId] || globalMailGateway)
+      : (smsGatewayCache[orgId] || globalSmsGateway);
+    sends.push(sendQueuedItem(item, gw));
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   await Promise.all(sends);

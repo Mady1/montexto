@@ -11,13 +11,29 @@ function parseConfig(raw) {
   }
 }
 
-function getDefaultMailGateway() {
+function getDefaultMailGateway(organizationId) {
   return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT * FROM sms_gateways WHERE channel = 'mail' AND is_default = 1 AND status = 'active' LIMIT 1`,
-      [],
-      (err, row) => (err ? reject(err) : resolve(row || null))
-    );
+    if (organizationId) {
+      db.get(
+        `SELECT * FROM sms_gateways WHERE organization_id = ? AND channel = 'mail' AND is_default = 1 AND status = 'active' LIMIT 1`,
+        [organizationId],
+        (err, row) => {
+          if (err) return reject(err);
+          if (row) return resolve(row);
+          db.get(
+            `SELECT * FROM sms_gateways WHERE organization_id IS NULL AND channel = 'mail' AND is_default = 1 AND status = 'active' LIMIT 1`,
+            [],
+            (err2, row2) => (err2 ? reject(err2) : resolve(row2 || null))
+          );
+        }
+      );
+    } else {
+      db.get(
+        `SELECT * FROM sms_gateways WHERE organization_id IS NULL AND channel = 'mail' AND is_default = 1 AND status = 'active' LIMIT 1`,
+        [],
+        (err, row) => (err ? reject(err) : resolve(row || null))
+      );
+    }
   });
 }
 

@@ -35,7 +35,7 @@ async function sendSingleSms({ organizationId, to, message, skipCreditCheck = fa
     if (await isBlacklisted(organizationId, to)) throw httpError('Ce numéro est en liste noire (DND)', 403);
   }
 
-  const gateway = await smsGateway.getDefaultGateway();
+  const gateway = await smsGateway.getDefaultGateway(organizationId);
   const smsResult = await smsGateway.sendSms({ to, body: message, gateway, correlationId: crypto.randomUUID() });
 
   if (organizationId && smsResult.status !== 'failed') {
@@ -75,7 +75,7 @@ async function sendBulkSms({ organizationId, phones, message, skipCreditCheck = 
   const validPhones = phones.filter((p) => !blacklisted.has(p));
   const skipped = phones.length - validPhones.length;
 
-  const gateway = await smsGateway.getDefaultGateway();
+  const gateway = await smsGateway.getDefaultGateway(organizationId);
 
   let delivered = 0;
   let failed = 0;

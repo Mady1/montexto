@@ -22,13 +22,31 @@ function parseConfig(raw) {
   }
 }
 
-function getDefaultGateway() {
+function getDefaultGateway(organizationId) {
   return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT * FROM sms_gateways WHERE is_default = 1 AND status = 'active' LIMIT 1`,
-      [],
-      (err, row) => (err ? reject(err) : resolve(row || null))
-    );
+    // First try org-specific default gateway
+    if (organizationId) {
+      db.get(
+        `SELECT * FROM sms_gateways WHERE organization_id = ? AND is_default = 1 AND status = 'active' AND channel = 'sms' LIMIT 1`,
+        [organizationId],
+        (err, row) => {
+          if (err) return reject(err);
+          if (row) return resolve(row);
+          // Fall back to global default (organization_id IS NULL)
+          db.get(
+            `SELECT * FROM sms_gateways WHERE organization_id IS NULL AND is_default = 1 AND status = 'active' AND channel = 'sms' LIMIT 1`,
+            [],
+            (err2, row2) => (err2 ? reject(err2) : resolve(row2 || null))
+          );
+        }
+      );
+    } else {
+      db.get(
+        `SELECT * FROM sms_gateways WHERE organization_id IS NULL AND is_default = 1 AND status = 'active' AND channel = 'sms' LIMIT 1`,
+        [],
+        (err, row) => (err ? reject(err) : resolve(row || null))
+      );
+    }
   });
 }
 

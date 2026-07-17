@@ -28,7 +28,10 @@ router.post('/test', requirePermission('admin.gateways'), async (req, res) => {
 
 // List all gateways
 router.get('/', (req, res) => {
-  db.all('SELECT * FROM sms_gateways ORDER BY is_default DESC, created_at ASC', [], (err, rows) => {
+  const isSuperAdmin = req.user.role_name === 'super_admin';
+  const where = isSuperAdmin ? '' : 'WHERE organization_id = ? OR organization_id IS NULL';
+  const params = isSuperAdmin ? [] : [req.user.organization_id];
+  db.all(`SELECT * FROM sms_gateways ${where} ORDER BY is_default DESC, created_at ASC`, params, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ data: rows });
   });
@@ -47,13 +50,15 @@ router.post('/', requirePermission('admin.gateways'), auditLog('gateway.create')
   const { name, provider, config, isDefault, channel = 'sms' } = req.body;
   if (!name || !provider) return res.status(400).json({ error: 'Name and provider required' });
 
+  const orgId = req.user.role_name === 'super_admin' ? (req.body.organizationId || null) : req.user.organization_id;
+
   db.serialize(() => {
     if (isDefault) {
-      db.run('UPDATE sms_gateways SET is_default = 0 WHERE channel = ?', [channel]);
+      db.run('UPDATE sms_gateways SET is_default = 0 WHERE channel = ? AND (organization_id = ? OR organization_id IS NULL)', [channel, orgId]);
     }
     db.run(
-      'INSERT INTO sms_gateways (name, provider, config, is_default, status, channel) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, provider, config ? JSON.stringify(config) : null, isDefault ? 1 : 0, 'active', channel],
+      'INSERT INTO sms_gateways (name, provider, config, is_default, status, channel, organization_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, provider, config ? JSON.stringify(config) : null, isDefault ? 1 : 0, 'active', channel, orgId],
       function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.status(201).json({ id: this.lastID, message: 'Gateway created' });
@@ -71,9 +76,11 @@ router.put('/:id', requirePermission('admin.gateways'), auditLog('gateway.update
 
     const effectiveChannel = channel || gateway.channel || 'sms';
 
+    const orgId = gateway.organization_id;
+
     db.serialize(() => {
       if (isDefault) {
-        db.run('UPDATE sms_gateways SET is_default = 0 WHERE channel = ?', [effectiveChannel]);
+        db.run('UPDATE sms_gateways SET is_default = 0 WHERE channel = ? AND (organization_id = ? OR organization_id IS NULL)', [effectiveChannel, orgId]);
       }
       db.run(
         'UPDATE sms_gateways SET name = ?, provider = ?, config = ?, is_default = ?, status = ?, channel = ? WHERE id = ?',
@@ -114,8 +121,10 @@ router.patch('/:id/default', requirePermission('admin.gateways'), auditLog('gate
   db.get('SELECT channel FROM sms_gateways WHERE id = ?', [req.params.id], (err, gateway) => {
     if (err || !gateway) return res.status(404).json({ error: 'Gateway not found' });
 
+    const orgId = gateway.organization_id;
+
     db.serialize(() => {
-      db.run('UPDATE sms_gateways SET is_default = 0 WHERE channel = ?', [gateway.channel || 'sms']);
+      db.run('UPDATE sms_gateways SET is_default = 0 WHERE channel = ? AND (organization_id = ? OR organization_id IS NULL)', [gateway.channel || 'sms', orgId]);
       db.run('UPDATE sms_gateways SET is_default = 1 WHERE id = ?', [req.params.id], (err2) => {
         if (err2) return res.status(500).json({ error: err2.message });
         res.json({ message: 'Default gateway set' });

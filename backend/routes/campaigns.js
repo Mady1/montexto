@@ -143,7 +143,7 @@ async function createCampaign(req, res) {
     );
   });
 
-  const gateway = isMail ? await mailGateway.getDefaultMailGateway() : await smsGateway.getDefaultGateway();
+  const gateway = isMail ? await mailGateway.getDefaultMailGateway(req.user.organization_id) : await smsGateway.getDefaultGateway(req.user.organization_id);
 
   let delivered = 0;
   let failed = 0;
