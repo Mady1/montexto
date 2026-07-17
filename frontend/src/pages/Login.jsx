@@ -1,3 +1,4 @@
+// Login v2 - direct login without OTP gate
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -12,6 +13,8 @@ const roleColors = {
   operator: 'from-emerald-500 to-teal-600',
   auditor: 'from-amber-500 to-orange-600',
 }
+
+export const LOGIN_VERSION = '2.0.0'
 
 export default function Login() {
   const { t } = useTranslation()
