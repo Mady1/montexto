@@ -1,18 +1,10 @@
 // Login v2 - direct login without OTP gate
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Loader2, Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles, Zap, KeyRound, ArrowLeft, ShieldCheck } from 'lucide-react'
+import { Loader2, Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles, KeyRound, ArrowLeft, ShieldCheck } from 'lucide-react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
-
-const roleColors = {
-  super_admin: 'from-red-500 to-rose-600',
-  org_admin: 'from-purple-500 to-violet-600',
-  resp_com: 'from-blue-500 to-indigo-600',
-  operator: 'from-emerald-500 to-teal-600',
-  auditor: 'from-amber-500 to-orange-600',
-}
 
 export const LOGIN_VERSION = '2.0.0'
 
@@ -23,7 +15,6 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [demoUsers, setDemoUsers] = useState([])
   const [otpStep, setOtpStep] = useState(false)
   const [otpCode, setOtpCode] = useState(['', '', '', '', '', ''])
   const [otpDevCode, setOtpDevCode] = useState('')
@@ -31,12 +22,6 @@ export default function Login() {
   const otpRefs = useRef([])
   const { login, refreshUser } = useAuth()
   const navigate = useNavigate()
-
-  useEffect(() => {
-    api.get('/auth/demo-users')
-      .then((res) => setDemoUsers(res.data.data || []))
-      .catch(() => {})
-  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -130,12 +115,6 @@ export default function Login() {
     setOtpStep(false)
     setOtpCode(['', '', '', '', '', ''])
     setOtpDevCode('')
-    setError('')
-  }
-
-  const quickLogin = (u) => {
-    setEmail(u.email)
-    setPassword(u.password)
     setError('')
   }
 
@@ -268,37 +247,6 @@ export default function Login() {
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>{t('login.signIn')} <ArrowRight className="w-4 h-4 ml-2" /></>}
                 </button>
               </form>
-
-              {demoUsers.length > 0 && (
-                <div className="mt-6 pt-6 border-t border-gray-100">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Zap className="w-3.5 h-3.5 text-brand-500" />
-                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('login.demoAccounts')}</span>
-                  </div>
-                  <div className="space-y-2">
-                    {demoUsers.map((u) => (
-                      <button
-                        key={u.id}
-                        onClick={() => quickLogin(u)}
-                        className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group text-left"
-                      >
-                        <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${roleColors[u.roleName] || 'from-gray-400 to-gray-600'} flex items-center justify-center text-white text-xs font-semibold shadow-sm flex-shrink-0`}>
-                          {(u.firstName?.[0] || u.email[0]).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-gray-700 truncate">
-                            {`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}
-                          </div>
-                          <div className="text-[11px] text-gray-400 truncate">
-                            {u.roleDisplayName || u.roleName} {u.organizationName ? `· ${u.organizationName}` : ''}
-                          </div>
-                        </div>
-                        <ArrowRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-brand-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </>
           )}
 

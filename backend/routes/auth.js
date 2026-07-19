@@ -11,53 +11,6 @@ const { getRolePermissions } = require('../middleware/rbac');
 
 const router = express.Router();
 
-// Public: list demo users for quick login (dev convenience)
-router.get('/demo-users', (req, res) => {
-  db.all(
-    `SELECT u.id, u.email, u.first_name, u.last_name,
-            r.name as role_name, r.display_name as role_display_name,
-            o.name as organization_name
-     FROM users u
-     LEFT JOIN roles r ON r.id = u.role_id
-     LEFT JOIN organizations o ON o.id = u.organization_id
-     WHERE u.status = 'active'
-     ORDER BY u.id ASC
-     LIMIT 20`,
-    [],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: 'Database error' });
-      const users = rows.map((u) => ({
-        id: u.id,
-        email: u.email,
-        firstName: u.first_name,
-        lastName: u.last_name,
-        roleName: u.role_name,
-        roleDisplayName: u.role_display_name,
-        organizationName: u.organization_name,
-        password: 'admin123',
-      }));
-      // Assign known demo passwords
-      const passwordMap = {
-        'admin@montexto.com': 'admin123',
-        'demo@montexto.com': 'demo123',
-        'resp.com@montexto.com': 'resp123',
-        'operator@montexto.com': 'op123',
-        'auditor@montexto.com': 'audit123',
-        'admin.banco@montexto.com': 'banco123',
-        'com.banco@montexto.com': 'bcom123',
-        'admin.orange@montexto.com': 'orange123',
-        'op.sifca@montexto.com': 'sifca123',
-        'mohamed.wague2453@gmail.com': 'admin123',
-        'libre@montexto.com': 'libre123',
-      };
-      users.forEach((u) => {
-        u.password = passwordMap[u.email] || 'demo123';
-      });
-      res.json({ data: users });
-    }
-  );
-});
-
 // Register (creates user with default role 'org_admin' if no role specified)
 router.post('/register', (req, res) => {
   const { email, password, firstName, lastName, phone, organizationName } = req.body;
